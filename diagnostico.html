@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><title>Diagnóstico ARCCO</title></head>
+<body>
+<h2 style="font-family:monospace">Diagnóstico de Módulos JS</h2>
+<div id="log" style="font-family:monospace;font-size:13px;line-height:1.8"></div>
+
+<script type="module">
+const log = document.getElementById('log');
+const ok  = (m) => { log.innerHTML += `<div style="color:green">✅ ${m}</div>`; };
+const err = (m, e) => { log.innerHTML += `<div style="color:red">❌ ${m}: ${e}</div>`; };
+
+async function test(name, fn) {
+    try { await fn(); ok(name); }
+    catch(e) { err(name, e.message || e); }
+}
+
+await test('config.js', async () => {
+    const m = await import('./config.js');
+    if (!m.STATE) throw new Error('STATE não exportado');
+    if (!m.auth)  throw new Error('auth não exportado');
+    if (!m.db)    throw new Error('db não exportado');
+});
+
+await test('ui.js', async () => {
+    const m = await import('./ui.js');
+    if (!m.showToast)   throw new Error('showToast não exportado');
+    if (!m.openModal)   throw new Error('openModal não exportado');
+    if (!m.closeModal)  throw new Error('closeModal não exportado');
+});
+
+await test('auth.js', async () => {
+    const m = await import('./auth.js');
+    if (!m.setupAuth) throw new Error('setupAuth não exportado');
+});
+
+await test('obras.js', async () => {
+    const m = await import('./obras.js');
+    if (!m.renderMasterObrasGrid) throw new Error('renderMasterObrasGrid não exportado');
+});
+
+await test('medicoes.js', async () => {
+    const m = await import('./medicoes.js');
+    if (!m.renderMedicoes) throw new Error('renderMedicoes não exportado');
+});
+
+await test('curvas.js', async () => {
+    const m = await import('./curvas.js');
+    if (!m.renderCurvas && !m.renderCurvaS) throw new Error('render não exportado');
+});
+
+await test('ponto.js', async () => {
+    const m = await import('./ponto.js');
+    if (!m.renderMasterPonto) throw new Error('renderMasterPonto não exportado');
+});
+
+await test('fornecedores.js', async () => {
+    const m = await import('./fornecedores.js');
+    if (!m.renderFornAdmin) throw new Error('renderFornAdmin não exportado');
+});
+
+await test('clientes.js', async () => {
+    const m = await import('./clientes.js');
+    if (!m.renderClientsList) throw new Error('renderClientsList não exportado');
+});
+
+await test('gestores.js', async () => {
+    const m = await import('./gestores.js');
+    if (!m.openModalGestores) throw new Error('openModalGestores não exportado');
+});
+
+await test('composicoes.js', async () => {
+    const m = await import('./composicoes.js');
+    if (!m.renderComposicoesList) throw new Error('renderComposicoesList não exportado');
+});
+
+await test('portal-forn.js', async () => {
+    const m = await import('./portal-forn.js');
+    if (!m.renderFornDash) throw new Error('renderFornDash não exportado');
+});
+
+await test('portal-membro.js', async () => {
+    const m = await import('./portal-membro.js');
+    if (!m.renderMembroDash) throw new Error('renderMembroDash não exportado');
+});
+
+await test('portal-cliente.js', async () => {
+    const m = await import('./portal-cliente.js');
+    if (!m.renderClienteDash) throw new Error('renderClienteDash não exportado');
+});
+
+await test('offline.js', async () => {
+    const m = await import('./offline.js');
+    if (!m.initOfflineListeners) throw new Error('initOfflineListeners não exportado');
+});
+
+log.innerHTML += '<hr><b>Diagnóstico completo.</b>';
+</script>
+</body>
+</html>
