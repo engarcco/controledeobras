@@ -197,25 +197,23 @@ window.toggleMobileMenu  = toggleMobileMenu;
 window.showMasterSection = showMasterSection;
 window.switchObraTab     = switchObraTab;
 
+// ── Funções de render expostas para o auth.js via window.APP ──
+// (auth.js chama via window.APP para evitar dependências circulares)
+window.APP.renderMasterObrasGrid   = renderMasterObrasGrid;
+window.APP.renderObraDetail        = renderObraDetail;
+window.APP.renderFornAdmin         = renderFornAdmin;
+window.APP.renderClientsList       = renderClientsList;
+window.APP.renderFornDash          = renderFornDash;
+window.APP.renderMembroDash        = renderMembroDash;
+window.APP.renderClienteDash       = renderClienteDash;
+window.APP.populaSelectClientes    = populaSelectClientes;
+window.APP.populaSelectManualForn  = populaSelectManualForn;
+window.APP.populaSelectComposicoes = populaSelectComposicoes;
+window.APP.renderComposicoesList   = renderComposicoesList;
+window.APP.renderListaGestores     = renderListaGestores;
+
 // ── Inicia autenticação Firebase + watchers Firestore ─────────
-setupAuth({
-    renderMasterObrasGrid,
-    renderObraDetail,
-    renderFornAdmin,
-    renderClientsList,
-    renderFornDash,
-    renderMembroDash,
-    renderClienteDash,
-    populaSelectClientes,
-    populaSelectManualForn,
-    populaSelectComposicoes,
-    renderComposicoesList,
-    renderListaGestores,
-    showToast,
-    showMasterSection,
-    switchObraTab,
-    switchFornTab,
-});
+setupAuth();
 
 // ── Offline listeners ─────────────────────────────────────────
 initOfflineListeners();
