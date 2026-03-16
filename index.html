@@ -3756,55 +3756,94 @@ function renderClienteDash(){
     lucide.createIcons();
 }
 
-// ══════════════════════════════════════════════════════════════
-// EXPORT para window.APP
-// ══════════════════════════════════════════════════════════════
+// =================================================================
+// LÓGICA DE SINCRONIZAÇÃO OFFLINE (Para os meninos na obra)
+// =================================================================
+
+// 1. Função que guarda o ponto no celular se não tiver internet
+function salvarOffline(dados) {
+    let fila = JSON.parse(localStorage.getItem("fila_ponto") || "[]");
+    fila.push({ ...dados, dataOffline: new Date().toISOString() });
+    localStorage.setItem("fila_ponto", JSON.stringify(fila));
+    
+    // Avisa o usuário com o Toast que você já tem no código
+    if(window.APP && window.APP.showToast) {
+        window.APP.showToast("Sem internet! Ponto guardado no celular.", "warning");
+    }
+}
+
+// 2. Função que envia os pontos guardados quando a internet volta
+async function sincronizarDados() {
+    if (!navigator.onLine) return;
+    let fila = JSON.parse(localStorage.getItem("fila_ponto") || "[]");
+    if (fila.length === 0) return;
+
+    for (let ponto of fila) {
+        try {
+            // Aqui ele tenta usar sua função original de salvar
+            await saveCheckin(ponto, true); 
+        } catch (e) { console.error("Erro ao subir dado:", e); }
+    }
+    localStorage.removeItem("fila_ponto");
+    window.APP.showToast("Sincronizado! Dados da obra atualizados.", "success");
+}
+
+// Escuta o celular: se a internet voltar, ele sincroniza na hora
+window.addEventListener("online", sincronizarDados);
+
+// =================================================================
+// EXPORT FINAL (Corrigido e fechado)
+// =================================================================
 window.APP = {
     openModal, closeModal, showToast,
     openObraDetail, duplicarObra, deleteObraCompleta,
     updateObraConfig,
-    // Task form
     setTipoContratacao, calcTotalTask, calcPERT, updateInicioStyle, handleDepChange,
     saveTaskToObra, editTask, resetTaskForm, toggleTaskStatus, deleteTask, toggleAtencao,
-    // Módulos
     saveModuloObra, editModuloObra, cancelEditModulo, deleteModuloObra,
-    // Obra config
     saveNovaObra, openModalNovaCompra, saveNovaCompra, aprovarCompra, deleteCompra,
-    // Medições
     openModalNovaMedicao, calcMedicaoTotal, saveMedicao, toggleStatusAdm, deleteMedicao,
     openModalNovaDiaria, calcDiaria, saveDiaria, deleteDiaria,
-    // Curvas S / ABC / Orçamento
     switchCurvaTab, renderCurvaS, renderCurvaABC, renderOrcamentoAnalitico,
-    // Folha de Ponto
     renderMasterPonto, aprovarCheckin, deleteCheckin,
     renderFornPontoLider, liderAprovarCheckin, switchFornTab,
-    renderMembroDash, abrirCheckin, abrirCheckinObra, _toggleCheckinObraRow, saveCheckin,
-    // Fornecedor / Membro
+    renderMembroDash, abrirCheckin, abrirCheckinObra, _toggleCheckinObraRow, 
+    
+    // Versão inteligente da função de salvar ponto
+    saveCheckin: async function(dados, isSync = false) {
+        if (!navigator.onLine && !isSync) {
+            salvarOffline(dados);
+            return;
+        }
+        return saveCheckin(dados); // Chama sua função original
+    },
+
     renderFornDash, renderFornChecklist, fornToggleStatus,
-    // Clientes
     openModalNovoCliente, editClient, saveNovoCliente, deleteClient,
-    // Fornecedores/Parceiros
     openModalManualForn, editForn, saveManualForn, submitRegForn, deleteForn, toggleLiderSelect,
-    // Gestores
     openModalGestores, saveNovoGestor, deleteGestor,
-    // Composições
     openModalComposicao, editComposicao, saveComposicao, deleteComposicao,
     aplicarComposicao
-}; // <--- AQUI ESTAVA O ERRO. ADICIONADO A CHAVE PARA FECHAR O OBJETO.
+}; // <--- Chave que faltava e travava o site
 
-// ── Close mobile menu on outside click ───────────────────────
+// Fechar menu mobile ao clicar fora
 document.addEventListener('click', (e) => {
     const menu = document.getElementById('mobile-menu');
     const btn  = document.getElementById('mobile-menu-btn');
     if(!menu || menu.classList.contains('hidden')) return;
     if(!menu.contains(e.target) && !btn.contains(e.target)) {
-        if (typeof window.toggleMobileMenu === 'function') {
-            window.toggleMobileMenu();
-        }
+        if(typeof toggleMobileMenu === 'function') toggleMobileMenu();
     }
 });
 
-// Certifique-se de que estas tags fecham o seu arquivo se ele for um HTML
+// Registro do Service Worker
+if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+        navigator.serviceWorker.register("/sw.js")
+            .then(reg => console.log("Sistema Offline Pronto"))
+            .catch(err => console.log("Erro SW:", err));
+    });
+}
 </script>
 </body>
 </html>
