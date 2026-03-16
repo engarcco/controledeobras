@@ -4,7 +4,7 @@
 
 import { STATE, today, parseDate, fmtDate, todayISO } from './config.js';
 import { pontoStatusBadge } from './ui.js';
-import { abrirCheckin, abrirCheckinObra } from './ponto.js';
+// abrirCheckin e abrirCheckinObra chamados via window.APP (sem import direto)
 
 export function renderMembroDash(){
     const cont      = document.getElementById('membro-content');
