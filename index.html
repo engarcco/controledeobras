@@ -3786,16 +3786,22 @@ window.APP = {
     openModalGestores, saveNovoGestor, deleteGestor,
     // Composições
     openModalComposicao, editComposicao, saveComposicao, deleteComposicao,
-    aplicarComposicao,
+    aplicarComposicao
+}; // <--- AQUI ESTAVA O ERRO. ADICIONADO A CHAVE PARA FECHAR O OBJETO.
+
 // ── Close mobile menu on outside click ───────────────────────
 document.addEventListener('click', (e) => {
     const menu = document.getElementById('mobile-menu');
     const btn  = document.getElementById('mobile-menu-btn');
     if(!menu || menu.classList.contains('hidden')) return;
     if(!menu.contains(e.target) && !btn.contains(e.target)) {
-        window.toggleMobileMenu();
+        if (typeof window.toggleMobileMenu === 'function') {
+            window.toggleMobileMenu();
+        }
     }
 });
+
+// Certifique-se de que estas tags fecham o seu arquivo se ele for um HTML
 </script>
 </body>
 </html>
