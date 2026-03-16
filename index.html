@@ -118,8 +118,17 @@ if ("serviceWorker" in navigator) {
 }
 </script>
 </head>
+
+
+    //INICIO BODY 
 <body class="min-h-screen">
 
+    
+<div id="offline-banner" class="hidden bg-red-600 text-white text-center py-2 text-sm font-bold fixed top-0 left-0 w-full z-[9999]">
+    ⚠️ VOCÊ ESTÁ OFFLINE - Os dados serão salvos no celular.
+</div>
+
+    
 <!-- TOAST -->
 <div id="toast" class="fixed top-4 right-4 z-[9999] translate-x-[150%] transition-transform duration-300 bg-arcco-black text-white px-6 py-4 rounded shadow-xl border-l-4 border-arcco-lime flex items-center gap-3">
     <i data-lucide="info" class="text-arcco-lime w-4 h-4 shrink-0"></i>
@@ -3764,7 +3773,6 @@ function renderClienteDash(){
 function salvarOffline(dados) {
     let fila = JSON.parse(localStorage.getItem("fila_ponto") || "[]");
     
-    // Adiciona o ponto na fila com marcação de horário original
     fila.push({ 
         ...dados, 
         registro_offline: true,
@@ -3789,12 +3797,10 @@ async function sincronizarDados() {
 
     for (let ponto of fila) {
         try {
-            // Tenta enviar para o banco de dados (Firebase)
-            // Chamamos a função global saveCheckin passando true para o modo sync
             await saveCheckin(ponto, true); 
         } catch (e) { 
             console.error("Erro ao subir dado offline:", e);
-            return; // Para e tenta o resto na próxima vez que a rede oscilar
+            return; 
         }
     }
     
@@ -3804,8 +3810,17 @@ async function sincronizarDados() {
     }
 }
 
-// Escuta o celular: se a internet voltar, ele sincroniza na hora
-window.addEventListener("online", sincronizarDados);
+// Listeners para o Banner de Internet
+window.addEventListener('online', () => {
+    const banner = document.getElementById('offline-banner');
+    if(banner) banner.classList.add('hidden');
+    sincronizarDados();
+});
+
+window.addEventListener('offline', () => {
+    const banner = document.getElementById('offline-banner');
+    if(banner) banner.classList.remove('hidden');
+});
 
 // =================================================================
 // EXPORT FINAL (Objeto APP do Sistema)
@@ -3814,34 +3829,25 @@ window.APP = {
     openModal, closeModal, showToast,
     openObraDetail, duplicarObra, deleteObraCompleta,
     updateObraConfig,
-    // Task form
     setTipoContratacao, calcTotalTask, calcPERT, updateInicioStyle, handleDepChange,
     saveTaskToObra, editTask, resetTaskForm, toggleTaskStatus, deleteTask, toggleAtencao,
-    // Módulos
     saveModuloObra, editModuloObra, cancelEditModulo, deleteModuloObra,
-    // Obra config
     saveNovaObra, openModalNovaCompra, saveNovaCompra, aprovarCompra, deleteCompra,
-    // Medições
     openModalNovaMedicao, calcMedicaoTotal, saveMedicao, toggleStatusAdm, deleteMedicao,
     openModalNovaDiaria, calcDiaria, saveDiaria, deleteDiaria,
-    // Curvas S / ABC / Orçamento
     switchCurvaTab, renderCurvaS, renderCurvaABC, renderOrcamentoAnalitico,
-    // Folha de Ponto
     renderMasterPonto, aprovarCheckin, deleteCheckin,
     renderFornPontoLider, liderAprovarCheckin, switchFornTab,
     renderMembroDash, abrirCheckin, abrirCheckinObra, _toggleCheckinObraRow, 
     
-    // Versão inteligente da função de salvar ponto (Offline First)
     saveCheckin: async function(dados, isSync = false) {
         if (!navigator.onLine && !isSync) {
             salvarOffline(dados);
             return;
         }
-        // Chama a função saveCheckin original definida anteriormente no seu código
         return saveCheckin(dados); 
     },
 
-    // Dashboards e Outros
     renderFornDash, renderFornChecklist, fornToggleStatus,
     openModalNovoCliente, editClient, saveNovoCliente, deleteClient,
     openModalManualForn, editForn, saveManualForn, submitRegForn, deleteForn, toggleLiderSelect,
@@ -3850,29 +3856,35 @@ window.APP = {
     aplicarComposicao
 }; 
 
-// ── Lógica de Interface (Menu Mobile) ────────────────────────
+// ── Lógica de Interface e Registro do Service Worker ──────────
 document.addEventListener('click', (e) => {
     const menu = document.getElementById('mobile-menu');
     const btn  = document.getElementById('mobile-menu-btn');
     if(!menu || menu.classList.contains('hidden')) return;
-    
     if(!menu.contains(e.target) && !btn.contains(e.target)) {
-        if(typeof toggleMobileMenu === 'function') {
-            toggleMobileMenu();
-        }
+        if(typeof toggleMobileMenu === 'function') toggleMobileMenu();
     }
 });
 
-// ── Registro do Service Worker (Offline PWA) ─────────────────
 if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
-        navigator.serviceWorker.register("/sw.js")
-            .then(reg => {
-                console.log("Service Worker registrado (Sistema Offline Pronto)");
-                // Tenta sincronizar logo ao abrir se houver internet
-                sincronizarDados();
-            })
-            .catch(err => console.log("Erro ao registrar Service Worker:", err));
+        navigator.serviceWorker.register("/sw.js").then(reg => {
+            console.log("Sistema Offline Pronto");
+            
+            // Lógica de atualização do App
+            reg.onupdatefound = () => {
+                const installingWorker = reg.installing;
+                installingWorker.onstatechange = () => {
+                    if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                        if(confirm("Nova atualização disponível! Deseja carregar agora?")) {
+                            window.location.reload();
+                        }
+                    }
+                };
+            };
+            
+            sincronizarDados();
+        });
     });
 }
 </script>
