@@ -104,6 +104,16 @@
             .safe-area-bottom { padding-bottom: constant(safe-area-inset-bottom); }
         }
     </style>
+    
+    <script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js")
+      .then(reg => console.log("Service Worker registrado"))
+      .catch(err => console.log("Erro no Service Worker", err));
+  });
+}
+</script>
 </head>
 <body class="min-h-screen">
 
