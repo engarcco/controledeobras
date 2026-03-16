@@ -66,6 +66,12 @@
         .animate-spin { animation: spin 1s linear infinite; }
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
         .animate-pulse { animation: pulse 2s cubic-bezier(.4,0,.6,1) infinite; }
+
+        /* Safe area para iPhone com notch/home indicator */
+        .safe-area-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
+        @supports (padding-bottom: constant(safe-area-inset-bottom)) {
+            .safe-area-bottom { padding-bottom: constant(safe-area-inset-bottom); }
+        }
     </style>
 </head>
 <body class="min-h-screen">
@@ -113,9 +119,10 @@
 <!-- ============================================================ -->
 <section id="view-master" class="hidden min-h-screen flex flex-col">
     <header class="bg-arcco-black text-white sticky top-0 z-50 shadow-md">
-        <div class="max-w-7xl mx-auto px-6 h-16 flex justify-between items-center">
-            <div class="flex items-center gap-8">
+        <div class="max-w-7xl mx-auto px-4 md:px-6 h-16 flex justify-between items-center">
+            <div class="flex items-center gap-4 md:gap-8">
                 <h2 class="font-montserrat font-black-italic text-2xl tracking-tighter">ARCCO<span class="text-arcco-lime">.</span></h2>
+                <!-- Desktop nav -->
                 <nav class="hidden md:flex gap-2 h-full items-center pt-1">
                     <button onclick="showMasterSection('dash')" class="nav-btn active px-4 py-2 text-xs font-bold uppercase tracking-wider text-gray-400 hover:text-arcco-lime transition-colors border-b-2 border-transparent">Obras</button>
                     <button onclick="showMasterSection('composicoes')" class="nav-btn px-4 py-2 text-xs font-bold uppercase tracking-wider text-gray-400 hover:text-arcco-lime transition-colors border-b-2 border-transparent">Composições</button>
@@ -123,10 +130,43 @@
                     <button onclick="showMasterSection('clientes')" class="nav-btn px-4 py-2 text-xs font-bold uppercase tracking-wider text-gray-400 hover:text-arcco-lime transition-colors border-b-2 border-transparent">Clientes</button>
                 </nav>
             </div>
-            <div class="flex items-center gap-4">
+            <div class="flex items-center gap-3">
                 <span class="text-[10px] text-arcco-black bg-arcco-lime uppercase font-bold px-3 py-1 rounded hidden md:block">GESTOR <span id="master-logged-name"></span></span>
-                <button onclick="APP.openModalGestores()" class="text-gray-400 hover:text-arcco-lime transition-colors ml-2" title="Equipe Master"><i data-lucide="shield" class="w-5 h-5"></i></button>
-                <button onclick="location.reload()" class="text-gray-400 hover:text-white transition-colors ml-2" title="Sair"><i data-lucide="power" class="w-5 h-5"></i></button>
+                <button onclick="APP.openModalGestores()" class="text-gray-400 hover:text-arcco-lime transition-colors hidden md:block" title="Equipe Master"><i data-lucide="shield" class="w-5 h-5"></i></button>
+                <button onclick="location.reload()" class="text-gray-400 hover:text-white transition-colors hidden md:block" title="Sair"><i data-lucide="power" class="w-5 h-5"></i></button>
+                <!-- Mobile hamburguer -->
+                <button id="mobile-menu-btn" onclick="toggleMobileMenu()" class="md:hidden text-gray-400 hover:text-white transition-colors p-1" aria-label="Menu">
+                    <i data-lucide="menu" class="w-6 h-6"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Mobile dropdown menu -->
+        <div id="mobile-menu" class="md:hidden hidden bg-gray-900 border-t border-gray-800">
+            <div class="px-4 py-2 space-y-0.5">
+                <button onclick="showMasterSection('dash'); toggleMobileMenu()" class="mob-nav-btn w-full text-left px-4 py-3 text-sm font-bold uppercase tracking-wider text-gray-300 hover:text-white hover:bg-gray-800 rounded-lg transition-colors flex items-center gap-3">
+                    <i data-lucide="hard-hat" class="w-4 h-4 text-arcco-lime shrink-0"></i> Obras
+                </button>
+                <button onclick="showMasterSection('composicoes'); toggleMobileMenu()" class="mob-nav-btn w-full text-left px-4 py-3 text-sm font-bold uppercase tracking-wider text-gray-300 hover:text-white hover:bg-gray-800 rounded-lg transition-colors flex items-center gap-3">
+                    <i data-lucide="book-open" class="w-4 h-4 text-arcco-lime shrink-0"></i> Composições
+                </button>
+                <button onclick="showMasterSection('fornecedores'); toggleMobileMenu()" class="mob-nav-btn w-full text-left px-4 py-3 text-sm font-bold uppercase tracking-wider text-gray-300 hover:text-white hover:bg-gray-800 rounded-lg transition-colors flex items-center gap-3">
+                    <i data-lucide="users" class="w-4 h-4 text-arcco-lime shrink-0"></i> Equipes
+                </button>
+                <button onclick="showMasterSection('clientes'); toggleMobileMenu()" class="mob-nav-btn w-full text-left px-4 py-3 text-sm font-bold uppercase tracking-wider text-gray-300 hover:text-white hover:bg-gray-800 rounded-lg transition-colors flex items-center gap-3">
+                    <i data-lucide="user-circle" class="w-4 h-4 text-arcco-lime shrink-0"></i> Clientes
+                </button>
+                <div class="border-t border-gray-700 my-1"></div>
+                <button onclick="APP.openModalGestores(); toggleMobileMenu()" class="w-full text-left px-4 py-3 text-sm font-bold uppercase tracking-wider text-gray-300 hover:text-white hover:bg-gray-800 rounded-lg transition-colors flex items-center gap-3">
+                    <i data-lucide="shield" class="w-4 h-4 text-gray-500 shrink-0"></i> Equipe Master
+                </button>
+                <div class="px-4 py-2 mb-1">
+                    <p class="text-[10px] text-gray-500 uppercase font-bold">Logado como</p>
+                    <p class="text-xs text-white font-bold uppercase mt-0.5" id="master-logged-name-mobile"></p>
+                </div>
+                <button onclick="location.reload()" class="w-full text-left px-4 py-3 text-sm font-bold uppercase tracking-wider text-arcco-red hover:bg-gray-800 rounded-lg transition-colors flex items-center gap-3">
+                    <i data-lucide="power" class="w-4 h-4 shrink-0"></i> Sair
+                </button>
             </div>
         </div>
     </header>
@@ -591,6 +631,34 @@
             <div id="composicoes-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
         </div>
     </main>
+
+    <!-- ── MOBILE BOTTOM NAV (só aparece em telas pequenas) ── -->
+    <nav class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-arcco-black border-t border-gray-800 shadow-2xl safe-area-bottom">
+        <div class="flex h-16">
+            <button onclick="showMasterSection('dash')" class="mob-bottom-btn flex-1 flex flex-col items-center justify-center gap-1 text-gray-500 hover:text-arcco-lime transition-colors active:bg-gray-800">
+                <i data-lucide="hard-hat" class="w-5 h-5"></i>
+                <span class="text-[9px] font-bold uppercase tracking-wider">Obras</span>
+            </button>
+            <button onclick="showMasterSection('composicoes')" class="mob-bottom-btn flex-1 flex flex-col items-center justify-center gap-1 text-gray-500 hover:text-arcco-lime transition-colors active:bg-gray-800">
+                <i data-lucide="book-open" class="w-5 h-5"></i>
+                <span class="text-[9px] font-bold uppercase tracking-wider">Composições</span>
+            </button>
+            <button onclick="showMasterSection('fornecedores')" class="mob-bottom-btn flex-1 flex flex-col items-center justify-center gap-1 text-gray-500 hover:text-arcco-lime transition-colors active:bg-gray-800">
+                <i data-lucide="users" class="w-5 h-5"></i>
+                <span class="text-[9px] font-bold uppercase tracking-wider">Equipes</span>
+            </button>
+            <button onclick="showMasterSection('clientes')" class="mob-bottom-btn flex-1 flex flex-col items-center justify-center gap-1 text-gray-500 hover:text-arcco-lime transition-colors active:bg-gray-800">
+                <i data-lucide="user-circle" class="w-5 h-5"></i>
+                <span class="text-[9px] font-bold uppercase tracking-wider">Clientes</span>
+            </button>
+            <button onclick="window.toggleMobileMenu()" class="flex-1 flex flex-col items-center justify-center gap-1 text-gray-500 hover:text-arcco-lime transition-colors active:bg-gray-800">
+                <i data-lucide="more-horizontal" class="w-5 h-5"></i>
+                <span class="text-[9px] font-bold uppercase tracking-wider">Mais</span>
+            </button>
+        </div>
+    </nav>
+    <!-- Espaço para não cobrir conteúdo com bottom nav no mobile -->
+    <div class="md:hidden h-16"></div>
 </section>
 
 <!-- ============================================================ -->
@@ -1118,6 +1186,8 @@ function refreshViews(){
     if(!STATE.activeUser) return;
     if(STATE.activeUser.role==='MASTER'){
         document.getElementById('master-logged-name').innerText = `| ${STATE.activeUser.name}`;
+        const mobName = document.getElementById('master-logged-name-mobile');
+        if(mobName) mobName.innerText = STATE.activeUser.name;
         renderMasterObrasGrid();
         if(STATE.currentObraId) renderObraDetail(STATE.currentObraId);
     }
@@ -1199,14 +1269,49 @@ const switchFornTab = (tab) => {
 };
 
 // ── NAV: Master sections ──────────────────────────────────────
+// ── Mobile menu toggle ────────────────────────────────────────
+window.toggleMobileMenu = () => {
+    const menu = document.getElementById('mobile-menu');
+    const btn  = document.getElementById('mobile-menu-btn');
+    if(!menu) return;
+    const isOpen = !menu.classList.contains('hidden');
+    menu.classList.toggle('hidden');
+    // Swap icon hamburger ↔ X
+    btn.innerHTML = isOpen
+        ? '<i data-lucide="menu" class="w-6 h-6"></i>'
+        : '<i data-lucide="x" class="w-6 h-6"></i>';
+    lucide.createIcons();
+};
+
 window.showMasterSection = (sec) => {
     ['dash','obra-detail','fornecedores','clientes','composicoes'].forEach(s=>{
         document.getElementById(`master-section-${s}`)?.classList.add('hidden');
     });
+    // Desktop nav active state
     document.querySelectorAll('.nav-btn').forEach(btn=>btn.classList.remove('active','border-arcco-lime','text-white'));
     const map = {dash:'Obras',composicoes:'Composições',fornecedores:'Equipes',clientes:'Clientes'};
     const lbl = map[sec];
     Array.from(document.querySelectorAll('.nav-btn')).find(b=>b.innerText.trim()===lbl)?.classList.add('active','border-arcco-lime','text-white');
+    // Mobile nav active state
+    document.querySelectorAll('.mob-nav-btn').forEach(btn=>{
+        btn.classList.remove('bg-gray-800','text-white');
+        btn.classList.add('text-gray-300');
+    });
+    const mobLabels = {dash:'Obras',composicoes:'Composições',fornecedores:'Equipes',clientes:'Clientes'};
+    const mobLbl = mobLabels[sec];
+    Array.from(document.querySelectorAll('.mob-nav-btn')).find(b=>b.innerText.trim().startsWith(mobLbl||'__'))?.classList.add('bg-gray-800','text-white');
+    // Mobile bottom nav active state
+    document.querySelectorAll('.mob-bottom-btn').forEach(btn=>{
+        btn.classList.remove('text-arcco-lime');
+        btn.classList.add('text-gray-500');
+    });
+    const bottomLabels = {dash:'Obras',composicoes:'Composições',fornecedores:'Equipes',clientes:'Clientes'};
+    const botLbl = bottomLabels[sec];
+    if(botLbl) {
+        Array.from(document.querySelectorAll('.mob-bottom-btn'))
+            .find(b=>b.querySelector('span')?.innerText.trim()===botLbl)
+            ?.classList.replace('text-gray-500','text-arcco-lime');
+    }
     document.getElementById(`master-section-${sec}`)?.classList.remove('hidden');
     if(sec!=='obra-detail') STATE.currentObraId = null;
     lucide.createIcons();
@@ -2190,6 +2295,9 @@ function renderMasterObrasGrid(){
 const openObraDetail = (fId) => {
     STATE.currentObraId = fId;
     APP.cancelEditModulo();
+    // Close mobile menu if open
+    const mm = document.getElementById('mobile-menu');
+    if(mm && !mm.classList.contains('hidden')) window.toggleMobileMenu();
     showMasterSection('obra-detail');
     switchObraTab('cronograma');
     renderObraDetail(fId);
@@ -3638,7 +3746,15 @@ window.APP = {
     // Composições
     openModalComposicao, editComposicao, saveComposicao, deleteComposicao,
     aplicarComposicao,
-};
+// ── Close mobile menu on outside click ───────────────────────
+document.addEventListener('click', (e) => {
+    const menu = document.getElementById('mobile-menu');
+    const btn  = document.getElementById('mobile-menu-btn');
+    if(!menu || menu.classList.contains('hidden')) return;
+    if(!menu.contains(e.target) && !btn.contains(e.target)) {
+        window.toggleMobileMenu();
+    }
+});
 </script>
 </body>
 </html>
