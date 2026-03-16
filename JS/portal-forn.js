@@ -4,7 +4,7 @@
 
 import { STATE, apiUpdate, today, parseDate, fmtBRL, fmtDate, todayISO } from './config.js';
 import { showToast } from './ui.js';
-import { renderFornPontoLider } from './ponto.js';
+// renderFornPontoLider chamado via window.APP para evitar dependência circular
 import { switchFornTab } from './ui.js';
 
 export function renderFornDash(){
