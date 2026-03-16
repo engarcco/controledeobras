@@ -4,9 +4,8 @@
 
 import { STATE, apiAdd, apiUpdate, apiDelete, today, parseDate, fmtBRL, fmtDate, todayISO, sortModulos, MOD_COLORS } from './config.js';
 import { showToast, showMasterSection, switchObraTab } from './ui.js';
-import { renderMedicoes } from './medicoes.js';
-import { renderMasterPonto } from './ponto.js';
-import { renderCurvas, switchCurvaTab } from './curvas.js';
+// renderMedicoes, renderMasterPonto, renderCurvas e switchCurvaTab
+// são chamadas via window.APP para evitar dependências circulares
 
 // ── Obras Grid ────────────────────────────────────────────────
 export function renderMasterObrasGrid(){
