@@ -1,13 +1,10 @@
-const CACHE_NAME = "arcco-hub-v3";
+const CACHE_NAME = "arcco-hub-v4";
 const ASSETS_TO_CACHE = [
   "/",
-  "/index.html",
-  "https://cdn.tailwindcss.com",
-  "https://unpkg.com/lucide@latest",
-  "https://cdn.jsdelivr.net/npm/chart.js"
+  "/index.html"
 ];
 
-// Instala o App no celular e guarda os arquivos básicos
+// Instalação: Guarda o básico
 self.addEventListener("install", event => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => {
@@ -17,7 +14,7 @@ self.addEventListener("install", event => {
   self.skipWaiting();
 });
 
-// Remove caches antigos quando você atualiza o sistema
+// Limpeza
 self.addEventListener("activate", event => {
   event.waitUntil(
     caches.keys().then(keys => {
@@ -28,7 +25,7 @@ self.addEventListener("activate", event => {
   );
 });
 
-// A MÁGICA: Tenta carregar pela internet, se não tiver, carrega do Cache
+// Estratégia: Tenta Internet, se falhar, usa o que tem guardado
 self.addEventListener("fetch", event => {
   event.respondWith(
     fetch(event.request).catch(() => {
