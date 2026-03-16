@@ -72,7 +72,8 @@ export function renderFornDash(){
     lucide.createIcons();
 }
 
-export const renderFornChecklist = (id) => {
+// 🔴 AQUI ESTAVA O ERRO - FOI ADICIONADO O "async" ANTES DOS PARÊNTESES ABAIXO
+export const renderFornChecklist = async (id) => {
     STATE.currentObraId = id;
     const o        = STATE.obras.find(x => x.firebaseId===id);
     const cont     = document.getElementById('fornecedor-content');
