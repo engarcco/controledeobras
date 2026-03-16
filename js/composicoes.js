@@ -76,7 +76,7 @@ export const populaSelectComposicoes = () => {
             .map(c => `<option value="${c.firebaseId}">[${c.codigo}] ${c.desc}</option>`).join('');
 };
 
-export const aplicarComposicao = () => {
+export const aplicarComposicao = async () => {
     const sel = document.getElementById('task-comp-select');
     if(!sel.value) return;
     const c = STATE.composicoes.find(x => x.firebaseId===sel.value);
