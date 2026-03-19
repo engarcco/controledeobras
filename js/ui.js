@@ -39,13 +39,13 @@ window.toggleMobileMenu = toggleMobileMenu;
 
 // ── Master section nav ────────────────────────────────────────
 export const showMasterSection = (sec) => {
-    ['dash','obra-detail','fornecedores','clientes','composicoes'].forEach(s => {
+    ['dash','obra-detail','fornecedores','clientes','composicoes','finalizadas','historico'].forEach(s => {
         document.getElementById(`master-section-${s}`)?.classList.add('hidden');
     });
 
     // Desktop nav active state
     document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active','border-arcco-lime','text-white'));
-    const map = {dash:'Obras',composicoes:'Composições',fornecedores:'Equipes',clientes:'Clientes'};
+    const map = {dash:'Obras',composicoes:'Composições',fornecedores:'Equipes',clientes:'Clientes',finalizadas:'Finalizadas',historico:'Histórico'};
     const lbl = map[sec];
     Array.from(document.querySelectorAll('.nav-btn')).find(b=>b.innerText.trim()===lbl)?.classList.add('active','border-arcco-lime','text-white');
 
@@ -70,6 +70,9 @@ export const showMasterSection = (sec) => {
     }
 
     document.getElementById(`master-section-${sec}`)?.classList.remove('hidden');
+    // Renderiza dinamicamente as seções especiais ao abrir
+    if(sec==='finalizadas') window.APP?.renderObrasFinalizadasGrid?.();
+    if(sec==='historico')   window.APP?.renderHistoricoIntelligence?.();
     lucide.createIcons();
 };
 window.showMasterSection = showMasterSection;
