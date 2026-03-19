@@ -3,153 +3,1127 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <title>ARCCO HUB | Gestão de Obras</title>
+
+    <!-- Manifesto do aplicativo -->
     <link rel="manifest" href="/manifest.json">
+
+    <!-- Favicons -->
     <link rel="icon" type="image/png" sizes="96x96" href="/favicon-96x96.png">
     <link rel="icon" href="/favicon.ico">
+
+    <!-- Ícone para iPhone / iPad -->
     <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-    <meta name="mobile-web-app-capable" content="yes"> 
-    <meta name="apple-mobile-web-app-capable" content="yes"> 
+
+    <!-- Configuração para abrir como app no iPhone -->
+   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+<meta name="mobile-web-app-capable" content="yes"> 
+<meta name="apple-mobile-web-app-capable" content="yes"> 
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="ARCCO HUB">
+
+    <!-- Tema do navegador -->
     <meta name="theme-color" content="#111111">
+
+    <!-- Tailwind -->
     <script src="https://cdn.tailwindcss.com"></script>
+
     <script>
         tailwind.config = {
             theme: {
                 extend: {
-                    fontFamily: { sans: ['"Open Sans"', 'sans-serif'], heading: ['"Montserrat"', 'sans-serif'] },
-                    colors: { arcco: { black: '#111111', white: '#ffffff', concrete: '#f4f4f5', lime: '#ccff00', red: '#ef4444', orange: '#f97316' } }
+                    fontFamily: {
+                        sans: ['"Open Sans"', 'sans-serif'],
+                        heading: ['"Montserrat"', 'sans-serif'],
+                    },
+                    colors: {
+                        arcco: {
+                            black: '#111111',
+                            white: '#ffffff',
+                            concrete: '#f4f4f5',
+                            concreteDark: '#a1a1aa',
+                            lime: '#ccff00',
+                            red: '#ef4444',
+                            orange: '#f97316'
+                        }
+                    }
                 }
             }
         }
     </script>
+
+    <!-- Bibliotecas -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- Fontes -->
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;800;900&family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+
     <style>
         body { background-color: #f4f4f5; color: #111111; }
         .font-montserrat { font-family: 'Montserrat', sans-serif; }
         .font-black-italic { font-weight: 900; font-style: italic; }
-        input, select, textarea { width: 100%; padding: 0.85rem 1rem; border: 1px solid #d4d4d8; border-radius: 0.5rem; background-color: #ffffff; outline: none; transition: all 0.2s; font-size: 0.875rem; }
-        input:focus, select:focus { border-color: #111111; border-width: 2px; }
-        .nav-btn.active { color: #ffffff; border-bottom-color: #ccff00; }
-        .safe-area-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
-    </style>
-</head>
 
+        input, select, textarea {
+            width: 100%; padding: 0.85rem 1rem; border: 1px solid #d4d4d8; border-radius: 0.5rem;
+            background-color: #ffffff; font-family: 'Open Sans', sans-serif;
+            outline: none; transition: all 0.2s; font-size: 0.875rem; color: #111;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            border-color: #111111; border-width: 2px;
+            padding: calc(0.85rem - 1px) calc(1rem - 1px);
+        }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-thumb { background: #d4d4d8; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #a1a1aa; }
+
+        .editing-row { background-color: #fef9c3 !important; border-left: 4px solid #eab308 !important; }
+        .alert-blocked { opacity: 0.65; background-color: #fafafa; }
+
+        .nav-btn.active { color: #ffffff; border-bottom-color: #ccff00; }
+
+        .toggle-checkbox:checked { right: 0; border-color: #ccff00; }
+        .toggle-checkbox:checked + .toggle-label { background-color: #ccff00; }
+        .dot { transition: transform 0.2s; }
+        .toggle-checkbox:checked ~ .dot { transform: translateX(100%); }
+
+        .badge-pago { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+        .badge-pendente { background: #fef9c3; color: #92400e; border: 1px solid #fde68a; }
+        .badge-parcial { background: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .animate-spin { animation: spin 1s linear infinite; }
+
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+        .animate-pulse { animation: pulse 2s cubic-bezier(.4,0,.6,1) infinite; }
+
+        .safe-area-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
+
+        @supports (padding-bottom: constant(safe-area-inset-bottom)) {
+            .safe-area-bottom { padding-bottom: constant(safe-area-inset-bottom); }
+        }
+    </style>
+ </head>
     
 <body class="min-h-screen">
 
-<div id="loading" class="fixed inset-0 z-[9000] bg-arcco-concrete flex flex-col items-center justify-center space-y-4">
-    <div class="w-12 h-12 border-4 border-arcco-lime border-t-arcco-black rounded-full animate-spin"></div>
-    <p class="font-montserrat text-xs tracking-widest uppercase font-bold text-gray-500">Iniciando Arcco Hub...</p>
+    
+<div id="offline-banner" class="hidden bg-red-600 text-white text-center py-2 text-sm font-bold fixed top-0 left-0 w-full z-[9999]">
+    ⚠️ VOCÊ ESTÁ OFFLINE - Os dados serão salvos no celular.
 </div>
 
+    
+<!-- TOAST -->
 <div id="toast" class="fixed top-4 right-4 z-[9999] translate-x-[150%] transition-transform duration-300 bg-arcco-black text-white px-6 py-4 rounded shadow-xl border-l-4 border-arcco-lime flex items-center gap-3">
     <i data-lucide="info" class="text-arcco-lime w-4 h-4 shrink-0"></i>
     <p id="toast-text" class="text-sm font-bold uppercase tracking-wide"></p>
 </div>
 
+<!-- LOADING -->
+<div id="loading" class="fixed inset-0 z-[9000] bg-arcco-concrete flex flex-col items-center justify-center space-y-4">
+    <div class="w-12 h-12 border-4 border-arcco-lime border-t-arcco-black rounded-full animate-spin"></div>
+    <p class="font-montserrat text-xs tracking-widest uppercase font-bold text-gray-500">Iniciando Arcco Hub...</p>
+</div>
+
+<!-- ============================================================ -->
+<!-- VIEW: LOGIN -->
+<!-- ============================================================ -->
 <section id="view-login" class="min-h-screen flex items-center justify-center p-6 bg-gray-100 hidden">
-    <div class="w-full max-w-sm bg-white p-10 rounded-xl shadow-xl border border-gray-200 text-center">
-        <h1 class="font-montserrat font-black-italic text-5xl text-arcco-black tracking-tighter mb-10">ARCCO<span class="text-arcco-lime">.</span></h1>
+    <div class="w-full max-w-sm bg-white p-10 rounded-xl shadow-xl border border-gray-200">
+        <div class="text-center mb-10">
+            <h1 class="font-montserrat font-black-italic text-5xl text-arcco-black leading-none tracking-tighter">ARCCO<span class="text-arcco-lime">.</span></h1>
+            <p class="text-[10px] font-montserrat uppercase tracking-[0.2em] text-gray-400 font-bold mt-2">Engenharia Integrada</p>
+        </div>
         <form id="login-form" class="space-y-5">
-            <input type="text" id="user-id" placeholder="Usuário" required>
-            <input type="password" id="pass-id" placeholder="Senha" required>
-            <button type="submit" class="w-full bg-arcco-lime text-arcco-black font-bold py-4 rounded uppercase">Entrar</button>
+            <div>
+                <label class="text-xs font-bold text-gray-500 uppercase">Acesso (ID de Login)</label>
+                <input type="text" id="user-id" placeholder="Seu usuário" required class="bg-gray-50 mt-1 focus:bg-white">
+            </div>
+            <div>
+                <label class="text-xs font-bold text-gray-500 uppercase">Senha</label>
+                <input type="password" id="pass-id" placeholder="••••••••" required class="bg-gray-50 mt-1 focus:bg-white">
+            </div>
+            <button type="submit" class="w-full bg-arcco-lime text-arcco-black font-montserrat font-bold uppercase py-3.5 rounded shadow-sm hover:brightness-95 transition-all mt-4">Entrar no Hub</button>
         </form>
+        <div class="mt-8 text-center border-t border-gray-100 pt-6">
+            <button onclick="APP.openModal('modal-reg-forn')" class="text-[10px] font-bold text-gray-400 hover:text-arcco-black transition-colors uppercase">Deseja ser um fornecedor parceiro?</button>
+        </div>
     </div>
 </section>
 
+<!-- ============================================================ -->
+<!-- VIEW: MASTER (ARCCO ENGENHARIA) -->
+<!-- ============================================================ -->
 <section id="view-master" class="hidden min-h-screen flex flex-col">
     <header class="bg-arcco-black text-white sticky top-0 z-50 shadow-md">
         <div class="max-w-7xl mx-auto px-4 md:px-6 h-16 flex justify-between items-center">
             <div class="flex items-center gap-4 md:gap-8">
                 <h2 class="font-montserrat font-black-italic text-2xl tracking-tighter">ARCCO<span class="text-arcco-lime">.</span></h2>
-                <nav class="hidden md:flex gap-2 h-full items-center">
-                    <button onclick="showMasterSection('dash')" class="nav-btn px-4 py-2 text-xs font-bold uppercase text-gray-400 hover:text-white">Obras</button>
-                    <button onclick="showMasterSection('orcamentos')" class="nav-btn px-4 py-2 text-xs font-bold uppercase text-gray-400 hover:text-white">Orçamentos</button>
-                    <button onclick="showMasterSection('fornecedores')" class="nav-btn px-4 py-2 text-xs font-bold uppercase text-gray-400 hover:text-white">Equipes</button>
-                    <button onclick="showMasterSection('clientes')" class="nav-btn px-4 py-2 text-xs font-bold uppercase text-gray-400 hover:text-white">Clientes</button>
+                <!-- Desktop nav -->
+                <nav class="hidden md:flex gap-2 h-full items-center pt-1">
+                    <button onclick="showMasterSection('dash')" class="nav-btn active px-4 py-2 text-xs font-bold uppercase tracking-wider text-gray-400 hover:text-arcco-lime transition-colors border-b-2 border-transparent">Obras</button>
+                    <button onclick="showMasterSection('composicoes')" class="nav-btn px-4 py-2 text-xs font-bold uppercase tracking-wider text-gray-400 hover:text-arcco-lime transition-colors border-b-2 border-transparent">Composições</button>
+                    <button onclick="showMasterSection('fornecedores')" class="nav-btn px-4 py-2 text-xs font-bold uppercase tracking-wider text-gray-400 hover:text-arcco-lime transition-colors border-b-2 border-transparent">Equipes</button>
+                    <button onclick="showMasterSection('clientes')" class="nav-btn px-4 py-2 text-xs font-bold uppercase tracking-wider text-gray-400 hover:text-arcco-lime transition-colors border-b-2 border-transparent">Clientes</button>
                 </nav>
             </div>
-            <button onclick="location.reload()" class="text-gray-400 hover:text-white"><i data-lucide="power"></i></button>
+            <div class="flex items-center gap-3">
+                <span class="text-[10px] text-arcco-black bg-arcco-lime uppercase font-bold px-3 py-1 rounded hidden md:block">GESTOR <span id="master-logged-name"></span></span>
+                <button onclick="APP.openModalGestores()" class="text-gray-400 hover:text-arcco-lime transition-colors hidden md:block" title="Equipe Master"><i data-lucide="shield" class="w-5 h-5"></i></button>
+                <button onclick="location.reload()" class="text-gray-400 hover:text-white transition-colors hidden md:block" title="Sair"><i data-lucide="power" class="w-5 h-5"></i></button>
+                <!-- Mobile hamburguer -->
+                <button id="mobile-menu-btn" onclick="toggleMobileMenu()" class="md:hidden text-gray-400 hover:text-white transition-colors p-1" aria-label="Menu">
+                    <i data-lucide="menu" class="w-6 h-6"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Mobile dropdown menu -->
+        <div id="mobile-menu" class="md:hidden hidden bg-gray-900 border-t border-gray-800">
+            <div class="px-4 py-2 space-y-0.5">
+                <button onclick="showMasterSection('dash'); toggleMobileMenu()" class="mob-nav-btn w-full text-left px-4 py-3 text-sm font-bold uppercase tracking-wider text-gray-300 hover:text-white hover:bg-gray-800 rounded-lg transition-colors flex items-center gap-3">
+                    <i data-lucide="hard-hat" class="w-4 h-4 text-arcco-lime shrink-0"></i> Obras
+                </button>
+                <button onclick="showMasterSection('composicoes'); toggleMobileMenu()" class="mob-nav-btn w-full text-left px-4 py-3 text-sm font-bold uppercase tracking-wider text-gray-300 hover:text-white hover:bg-gray-800 rounded-lg transition-colors flex items-center gap-3">
+                    <i data-lucide="book-open" class="w-4 h-4 text-arcco-lime shrink-0"></i> Composições
+                </button>
+                <button onclick="showMasterSection('fornecedores'); toggleMobileMenu()" class="mob-nav-btn w-full text-left px-4 py-3 text-sm font-bold uppercase tracking-wider text-gray-300 hover:text-white hover:bg-gray-800 rounded-lg transition-colors flex items-center gap-3">
+                    <i data-lucide="users" class="w-4 h-4 text-arcco-lime shrink-0"></i> Equipes
+                </button>
+                <button onclick="showMasterSection('clientes'); toggleMobileMenu()" class="mob-nav-btn w-full text-left px-4 py-3 text-sm font-bold uppercase tracking-wider text-gray-300 hover:text-white hover:bg-gray-800 rounded-lg transition-colors flex items-center gap-3">
+                    <i data-lucide="user-circle" class="w-4 h-4 text-arcco-lime shrink-0"></i> Clientes
+                </button>
+                <div class="border-t border-gray-700 my-1"></div>
+                <button onclick="APP.openModalGestores(); toggleMobileMenu()" class="w-full text-left px-4 py-3 text-sm font-bold uppercase tracking-wider text-gray-300 hover:text-white hover:bg-gray-800 rounded-lg transition-colors flex items-center gap-3">
+                    <i data-lucide="shield" class="w-4 h-4 text-gray-500 shrink-0"></i> Equipe Master
+                </button>
+                <div class="px-4 py-2 mb-1">
+                    <p class="text-[10px] text-gray-500 uppercase font-bold">Logado como</p>
+                    <p class="text-xs text-white font-bold uppercase mt-0.5" id="master-logged-name-mobile"></p>
+                </div>
+                <button onclick="location.reload()" class="w-full text-left px-4 py-3 text-sm font-bold uppercase tracking-wider text-arcco-red hover:bg-gray-800 rounded-lg transition-colors flex items-center gap-3">
+                    <i data-lucide="power" class="w-4 h-4 shrink-0"></i> Sair
+                </button>
+            </div>
         </div>
     </header>
 
-    //MAIN
     <main class="flex-1 max-w-7xl mx-auto w-full p-4 md:p-6 space-y-8">
-        <div id="loading" class="flex flex-col items-center justify-center py-20">
-            <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-arcco-lime"></div>
-            <p class="mt-4 font-montserrat text-gray-500 uppercase text-xs tracking-widest">Carregando Ecossistema...</p>
-        </div>
 
-        <div id="master-section-dash" class="hidden space-y-6">
-            <div class="flex justify-between items-end border-b border-gray-300 pb-4">
-                <h3 class="font-montserrat font-bold text-2xl uppercase">Portfólio de Obras</h3>
-                <button onclick="APP.openModal('modal-nova-obra')" class="bg-arcco-black text-white px-6 py-3 rounded text-xs font-bold uppercase">+ Iniciar Obra</button>
+        <!-- SEC: OBRAS GRID -->
+        <div id="master-section-dash" class="space-y-6">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 border-b border-gray-300 pb-4">
+                <div>
+                    <h3 class="font-montserrat font-bold text-2xl uppercase text-arcco-black">Portfólio de Obras</h3>
+                    <p class="text-sm text-gray-500 font-semibold mt-1">Visão geral dos projetos ativos</p>
+                </div>
+                <button onclick="APP.openModal('modal-nova-obra')" class="bg-arcco-black text-white font-montserrat font-bold text-xs uppercase px-6 py-3 rounded shadow-md hover:bg-gray-800 transition-colors flex items-center gap-2">
+                    <i data-lucide="plus" class="w-4 h-4 text-arcco-lime"></i> Iniciar Nova Obra
+                </button>
             </div>
-            <div id="master-obras-grid" class="grid grid-cols-1 md:grid-cols-3 gap-6"></div>
+            <div id="master-obras-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
         </div>
 
-        <div id="master-section-orcamentos" class="hidden space-y-6">
-            <div class="flex justify-between items-end border-b border-gray-300 pb-4">
-                <h3 class="font-montserrat font-bold text-2xl uppercase">Orçamentos & Propostas</h3>
-                <button onclick="APP.openModal('modal-nova-obra')" class="bg-arcco-black text-white px-6 py-3 rounded text-xs font-bold uppercase">+ Novo Orçamento</button>
+        <!-- SEC: DETALHE DA OBRA -->
+        <div id="master-section-obra-detail" class="hidden space-y-6">
+
+            <!-- Cabeçalho -->
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                <button onclick="showMasterSection('dash')" class="text-xs font-bold text-gray-400 hover:text-arcco-black flex items-center gap-1 mb-4 uppercase transition-colors">
+                    <i data-lucide="arrow-left" class="w-4 h-4"></i> Voltar ao Portfólio
+                </button>
+                <div class="flex flex-col lg:flex-row justify-between items-start gap-6">
+                    <div class="flex-1">
+                        <div class="flex items-center gap-3 mb-1">
+                            <span id="det-obra-tipo" class="text-[9px] font-bold text-gray-500 bg-gray-100 px-2 py-1 rounded uppercase tracking-wider border border-gray-200"></span>
+                        </div>
+                        <h3 id="det-obra-nome" class="font-montserrat font-black-italic text-3xl text-arcco-black tracking-tighter">NOME DA OBRA</h3>
+                        <p id="det-obra-cliente" class="text-sm text-gray-500 font-bold uppercase mt-1">Cliente: ---</p>
+                        <div id="det-config-contrato" class="mt-5 p-4 bg-gray-50 border border-gray-200 rounded-lg flex flex-wrap items-end gap-4 max-w-2xl"></div>
+                    </div>
+                    <div id="det-financeiro-container" class="grid grid-cols-2 lg:grid-cols-3 gap-3 w-full lg:w-auto shrink-0"></div>
+                </div>
             </div>
-            <div id="master-orcamentos-grid" class="grid grid-cols-1 md:grid-cols-3 gap-6"></div>
+
+            <!-- Abas da obra -->
+            <div class="flex gap-1 border-b border-gray-200 bg-white rounded-t-xl px-4 shadow-sm overflow-x-auto">
+                <button onclick="switchObraTab('cronograma')" class="obra-tab-btn active-tab px-5 py-3.5 text-xs font-bold uppercase tracking-wider border-b-2 border-arcco-lime text-arcco-black transition-colors whitespace-nowrap">
+                    <i data-lucide="calendar-check" class="inline w-3.5 h-3.5 mr-1.5"></i>Cronograma
+                </button>
+                <button onclick="switchObraTab('curvas')" class="obra-tab-btn px-5 py-3.5 text-xs font-bold uppercase tracking-wider border-b-2 border-transparent text-gray-400 hover:text-arcco-black transition-colors whitespace-nowrap">
+                    <i data-lucide="trending-up" class="inline w-3.5 h-3.5 mr-1.5"></i>Curva S / ABC
+                </button>
+                <button onclick="switchObraTab('medicoes')" class="obra-tab-btn px-5 py-3.5 text-xs font-bold uppercase tracking-wider border-b-2 border-transparent text-gray-400 hover:text-arcco-black transition-colors whitespace-nowrap">
+                    <i data-lucide="wallet" class="inline w-3.5 h-3.5 mr-1.5"></i>Medições & Pagamentos
+                </button>
+                <button onclick="switchObraTab('ponto')" class="obra-tab-btn px-5 py-3.5 text-xs font-bold uppercase tracking-wider border-b-2 border-transparent text-gray-400 hover:text-arcco-black transition-colors whitespace-nowrap relative">
+                    <i data-lucide="clipboard-list" class="inline w-3.5 h-3.5 mr-1.5"></i>Folha de Ponto
+                    <span id="master-ponto-badge" class="hidden ml-1.5 bg-arcco-red text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full">!</span>
+                </button>
+                <button onclick="switchObraTab('compras')" class="obra-tab-btn px-5 py-3.5 text-xs font-bold uppercase tracking-wider border-b-2 border-transparent text-gray-400 hover:text-arcco-black transition-colors whitespace-nowrap">
+                    <i data-lucide="shopping-cart" class="inline w-3.5 h-3.5 mr-1.5"></i>Compras Extras
+                </button>
+            </div>
+
+            <!-- TAB: CRONOGRAMA -->
+            <div id="obra-tab-cronograma" class="space-y-6">
+                <!-- Gráficos -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex flex-col items-center">
+                        <p class="text-xs font-bold text-gray-400 tracking-widest uppercase mb-6 w-full text-center border-b border-gray-100 pb-3">Progresso Físico</p>
+                        <div class="relative h-48 w-full flex justify-center items-center">
+                            <canvas id="det-chart-donut"></canvas>
+                            <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                                <span id="det-pct-text" class="font-montserrat font-black-italic text-4xl text-arcco-black">0%</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 lg:col-span-2 flex flex-col">
+                        <p class="text-xs font-bold text-gray-400 tracking-widest uppercase mb-6 w-full text-center border-b border-gray-100 pb-3">Status por Módulo (EAP)</p>
+                        <div class="relative h-48 w-full"><canvas id="det-chart-bar"></canvas></div>
+                    </div>
+                </div>
+
+                <div id="det-alertas-container" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+
+                <!-- Módulos -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                    <div class="bg-arcco-black border-b border-gray-800 p-4 flex justify-between items-center cursor-pointer hover:bg-gray-900 transition-colors" onclick="document.getElementById('gerenciar-modulos-body').classList.toggle('hidden')">
+                        <h4 class="font-montserrat font-bold text-sm uppercase text-white tracking-wide"><i data-lucide="layers" class="inline w-4 h-4 mr-2 text-arcco-lime"></i> Gerenciar Módulos (EAP)</h4>
+                        <i data-lucide="chevron-down" class="w-4 h-4 text-gray-400"></i>
+                    </div>
+                    <div id="gerenciar-modulos-body" class="p-6 hidden">
+                        <div class="flex flex-col md:flex-row gap-4 items-end bg-gray-50 p-4 rounded-lg border border-gray-200">
+                            <div class="w-full md:w-1/4">
+                                <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1 block">Índice (Ex: 1.1)</label>
+                                <input type="text" id="mod-indice" placeholder="1.0" class="font-bold uppercase text-arcco-black">
+                            </div>
+                            <div class="w-full md:w-2/4">
+                                <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1 block">Nome da Etapa</label>
+                                <input type="text" id="mod-nome" placeholder="Ex: Serviços Preliminares" class="font-bold text-arcco-black">
+                            </div>
+                            <div class="w-full md:w-1/4 flex gap-2">
+                                <button id="btn-cancel-mod" onclick="APP.cancelEditModulo()" class="hidden w-1/3 bg-white border border-gray-300 text-gray-600 font-bold uppercase rounded hover:bg-gray-100 text-xs py-3">X</button>
+                                <button id="btn-save-mod" onclick="APP.saveModuloObra()" class="flex-1 bg-arcco-lime text-arcco-black font-montserrat font-bold text-xs uppercase py-3 rounded hover:brightness-95">Adicionar</button>
+                            </div>
+                        </div>
+                        <div id="lista-modulos-inline" class="mt-5 flex flex-col gap-2"></div>
+                    </div>
+                </div>
+
+                <!-- Formulário de Tarefa -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                    <div class="bg-arcco-black border-b border-gray-800 p-4 flex justify-between items-center">
+                        <h4 class="font-montserrat font-bold text-sm uppercase text-white tracking-wide"><i data-lucide="settings-2" class="inline w-4 h-4 mr-2 text-arcco-lime"></i> Adicionar/Editar Serviço</h4>
+                        <button id="task-atencao" onclick="APP.toggleAtencao(this)" data-active="false" class="text-[10px] font-bold uppercase px-3 py-1.5 border border-gray-600 rounded text-gray-300 hover:bg-gray-800 flex items-center gap-1">
+                            <i data-lucide="alert-triangle" class="w-3 h-3"></i> Item Crítico
+                        </button>
+                    </div>
+                    <div class="p-6 space-y-5">
+                        <div class="grid grid-cols-1 md:grid-cols-12 gap-5 items-end">
+                            <div class="md:col-span-4">
+                                <label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Módulo EAP</label>
+                                <select id="task-modulo" class="font-bold text-arcco-black bg-gray-50"></select>
+                            </div>
+                            <div class="md:col-span-8">
+                                <div class="flex justify-between items-end mb-1">
+                                    <label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Descrição da Tarefa</label>
+                                    <select id="task-comp-select" onchange="APP.aplicarComposicao()" class="text-[9px] font-bold uppercase bg-arcco-lime/20 text-arcco-black border border-arcco-lime/50 rounded px-2 py-0.5 outline-none cursor-pointer max-w-[150px] truncate mb-0.5">
+                                        <option value="">+ IMPORTAR PADRÃO</option>
+                                    </select>
+                                </div>
+                                <input type="text" id="task-nome" placeholder="Descreva o serviço..." class="font-bold">
+                            </div>
+                        </div>
+
+                        <!-- TIPO DE CONTRATAÇÃO: Empreita ou Detalhado -->
+                        <div class="flex items-center gap-3 bg-gray-50 p-3 rounded-lg border border-gray-200">
+                            <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Tipo de Contratação:</span>
+                            <div class="flex gap-2">
+                                <button id="btn-tipo-detalhado" onclick="APP.setTipoContratacao('detalhado')" class="px-4 py-1.5 text-[10px] font-bold uppercase rounded border transition-colors bg-arcco-black text-white border-arcco-black">
+                                    Custos Detalhados
+                                </button>
+                                <button id="btn-tipo-empreita" onclick="APP.setTipoContratacao('empreita')" class="px-4 py-1.5 text-[10px] font-bold uppercase rounded border transition-colors bg-white text-gray-500 border-gray-300 hover:border-arcco-black hover:text-arcco-black">
+                                    <i data-lucide="handshake" class="inline w-3 h-3 mr-1"></i>Empreita (Valor Cheio)
+                                </button>
+                            </div>
+                            <input type="hidden" id="task-tipo-contratacao" value="detalhado">
+                        </div>
+
+                        <!-- MODO DETALHADO (padrão) -->
+                        <div id="campos-detalhado" class="bg-gray-50 p-4 rounded-lg border border-gray-200 space-y-4">
+                            <div class="grid grid-cols-1 md:grid-cols-4 gap-5">
+                                <div>
+                                    <label class="text-[10px] font-bold text-gray-600 uppercase tracking-wider flex items-center gap-1"><i data-lucide="users" class="w-3 h-3 text-gray-400"></i> Mão de Obra (R$)</label>
+                                    <input type="number" id="task-mo" placeholder="0.00" class="mt-1" oninput="APP.calcTotalTask()">
+                                </div>
+                                <div>
+                                    <label class="text-[10px] font-bold text-gray-600 uppercase tracking-wider flex items-center gap-1"><i data-lucide="package" class="w-3 h-3 text-gray-400"></i> Material (R$)</label>
+                                    <input type="number" id="task-mat" placeholder="0.00" class="mt-1" oninput="APP.calcTotalTask()">
+                                </div>
+                                <div>
+                                    <label class="text-[10px] font-bold text-gray-600 uppercase tracking-wider flex items-center gap-1"><i data-lucide="truck" class="w-3 h-3 text-gray-400"></i> Equipam. (R$)</label>
+                                    <input type="number" id="task-eq" placeholder="0.00" class="mt-1" oninput="APP.calcTotalTask()">
+                                </div>
+                                <div>
+                                    <label class="text-[10px] font-bold text-gray-600 uppercase tracking-wider flex items-center gap-1"><i data-lucide="plus-circle" class="w-3 h-3 text-gray-400"></i> Outros (R$)</label>
+                                    <input type="number" id="task-ou" placeholder="0.00" class="mt-1" oninput="APP.calcTotalTask()">
+                                </div>
+                            </div>
+                            <div class="border-t border-gray-200 pt-4 flex flex-col md:flex-row justify-between items-center gap-4">
+                                <div class="w-full md:w-1/3 bg-arcco-lime/10 p-2.5 rounded border border-arcco-lime/40 flex items-center gap-3">
+                                    <select id="task-taxa-tipo" class="text-[10px] font-bold text-gray-700 uppercase bg-transparent outline-none cursor-pointer p-0 border-none flex-1" onchange="APP.calcTotalTask()">
+                                        <option value="BDI">BDI (%)</option>
+                                        <option value="ADM">Taxa ADM (%)</option>
+                                    </select>
+                                    <input type="number" id="task-taxa-pct" placeholder="0" class="w-24 border-gray-300 font-bold px-2 py-1.5" oninput="APP.calcTotalTask()">
+                                </div>
+                                <div class="flex flex-col sm:flex-row justify-end items-end sm:items-center gap-4 w-full md:w-auto">
+                                    <div class="text-right">
+                                        <span class="text-[10px] font-bold text-gray-400 uppercase">Custo Direto:</span>
+                                        <span id="task-valor-display" class="font-montserrat font-bold text-sm text-gray-600 ml-1">R$ 0,00</span>
+                                    </div>
+                                    <div class="text-right">
+                                        <span class="text-[10px] font-bold text-arcco-black uppercase bg-arcco-lime px-2 py-0.5 rounded mr-1">Preço Venda:</span>
+                                        <span id="task-venda-display" class="font-montserrat font-bold text-lg text-arcco-black">R$ 0,00</span>
+                                    </div>
+                                    <input type="hidden" id="task-valor" value="0">
+                                    <input type="hidden" id="task-valor-venda" value="0">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- MODO EMPREITA -->
+                        <div id="campos-empreita" class="hidden bg-orange-50 p-5 rounded-lg border-2 border-orange-300 space-y-4">
+                            <div class="flex items-center gap-2 mb-1">
+                                <i data-lucide="handshake" class="w-4 h-4 text-arcco-orange"></i>
+                                <span class="text-xs font-bold text-arcco-orange uppercase tracking-wide">Serviço Contratado por Empreita</span>
+                            </div>
+                            <p class="text-[10px] font-bold text-gray-600 uppercase">Valor único já incluindo mão de obra, material e demais custos do contratado.</p>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                <div>
+                                    <label class="text-[10px] font-bold text-arcco-orange uppercase tracking-wider">Valor de Empreita (R$)</label>
+                                    <input type="number" id="task-empreita" placeholder="0.00" class="mt-1 font-bold text-arcco-black border-orange-300 focus:border-orange-500" oninput="APP.calcTotalTask()">
+                                </div>
+                                <div>
+                                    <label class="text-[10px] font-bold text-gray-600 uppercase tracking-wider flex items-center gap-1">
+                                        <i data-lucide="percent" class="w-3 h-3 text-gray-400"></i> Margem Arcco / BDI (%)
+                                        <span class="text-[8px] text-gray-400 normal-case font-normal ml-1">(opcional)</span>
+                                    </label>
+                                    <input type="number" id="task-empreita-bdi" placeholder="0" class="mt-1 font-bold border-orange-200" oninput="APP.calcTotalTask()">
+                                </div>
+                            </div>
+                            <div class="bg-white rounded-lg p-3 border border-orange-200 flex flex-col sm:flex-row justify-between items-center gap-3">
+                                <div class="text-right">
+                                    <span class="text-[10px] font-bold text-gray-400 uppercase">Custo Empreita:</span>
+                                    <span id="task-empreita-custo-display" class="font-montserrat font-bold text-sm text-gray-600 ml-1">R$ 0,00</span>
+                                </div>
+                                <div class="text-right">
+                                    <span class="text-[10px] font-bold text-arcco-black uppercase bg-arcco-lime px-2 py-0.5 rounded mr-1">Preço de Venda:</span>
+                                    <span id="task-empreita-venda-display" class="font-montserrat font-bold text-lg text-arcco-black">R$ 0,00</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-12 gap-5 border-t border-gray-100 pt-5">
+                            <div class="md:col-span-4">
+                                <label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Responsável (Líder)</label>
+                                <select id="task-fornecedor" class="mt-1"></select>
+                            </div>
+                            <div class="md:col-span-4">
+                                <label class="text-[10px] font-bold text-arcco-orange uppercase tracking-wider flex items-center gap-1"><i data-lucide="link" class="w-3 h-3"></i> Depende de:</label>
+                                <select id="task-dep" class="mt-1 border-orange-200 focus:border-orange-500 bg-orange-50" onchange="APP.handleDepChange()"><option value="">NENHUMA (INÍCIO LIVRE)</option></select>
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Data Início</label>
+                                <input type="date" id="task-inicio" class="mt-1" onchange="APP.updateInicioStyle(this)">
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Data Limite</label>
+                                <input type="date" id="task-fim" class="mt-1">
+                            </div>
+                            <!-- PERT -->
+                            <div class="md:col-span-12 bg-blue-50/50 p-4 rounded-lg border border-blue-100 flex flex-col md:flex-row gap-5 items-start md:items-center">
+                                <div class="shrink-0 text-blue-800 flex items-center gap-2">
+                                    <i data-lucide="network" class="w-4 h-4"></i>
+                                    <span class="text-[10px] font-bold uppercase tracking-widest">Análise PERT</span>
+                                </div>
+                                <div class="flex-1 grid grid-cols-2 gap-4 w-full">
+                                    <div>
+                                        <label class="text-[9px] font-bold text-green-700 uppercase">Otimista (O)</label>
+                                        <select id="task-otimista" class="mt-1 text-xs border-green-200 bg-green-50 text-green-800 font-bold" onchange="APP.calcPERT()">
+                                            <option value="0">Padrão</option>
+                                            <option value="-1">-1 Dia</option><option value="-2">-2 Dias</option>
+                                            <option value="-3">-3 Dias</option><option value="-4">-4 Dias</option><option value="-5">-5 Dias</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="text-[9px] font-bold text-red-700 uppercase">Pessimista (P)</label>
+                                        <select id="task-pessimista" class="mt-1 text-xs border-red-200 bg-red-50 text-red-800 font-bold" onchange="APP.calcPERT()">
+                                            <option value="0">Padrão</option>
+                                            <option value="1">+1 Dia</option><option value="2">+2 Dias</option><option value="3">+3 Dias</option>
+                                            <option value="4">+4 Dias</option><option value="5">+5 Dias</option><option value="7">+7 Dias</option><option value="10">+10 Dias</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="w-full md:w-auto text-right bg-white p-2.5 rounded shadow-sm border border-blue-100 min-w-[150px]">
+                                    <span class="text-[9px] font-bold text-gray-500 uppercase block">Tempo Esperado (TE)</span>
+                                    <span id="pert-display" class="font-montserrat font-bold text-sm text-blue-700">---</span>
+                                </div>
+                            </div>
+
+                            <div class="md:col-span-12 flex justify-end gap-3 pt-2">
+                                <button id="btn-cancel-edit" onclick="APP.resetTaskForm()" class="hidden text-xs font-bold uppercase text-gray-400 hover:text-arcco-black px-4 py-2">Cancelar</button>
+                                <button id="btn-save-task" onclick="APP.saveTaskToObra()" class="bg-arcco-lime text-arcco-black font-montserrat font-bold text-xs uppercase px-8 py-3.5 rounded hover:brightness-95 shadow-md">Salvar no Cronograma</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Lista EAP -->
+                <div id="det-cronograma-list" class="space-y-6"></div>
+            </div>
+
+            <!-- TAB: MEDIÇÕES & PAGAMENTOS -->
+            <div id="obra-tab-medicoes" class="hidden space-y-6">
+
+                <!-- Resumo Financeiro do Ciclo -->
+                <div id="medicoes-resumo" class="grid grid-cols-1 md:grid-cols-3 gap-4"></div>
+
+                <!-- Ações -->
+                <div class="flex flex-col md:flex-row gap-3 justify-between items-start md:items-center">
+                    <div>
+                        <h4 class="font-montserrat font-bold text-lg uppercase text-arcco-black">Histórico de Medições</h4>
+                        <p class="text-xs text-gray-500 font-bold uppercase mt-0.5">Ciclos semanais/quinzenais de medição e pagamento</p>
+                    </div>
+                    <div class="flex gap-3">
+                        <button onclick="APP.openModalNovaDiaria()" class="bg-white border border-gray-300 text-arcco-black font-montserrat font-bold text-xs uppercase px-5 py-2.5 rounded shadow-sm hover:bg-gray-50 flex items-center gap-2">
+                            <i data-lucide="user-check" class="w-4 h-4 text-arcco-orange"></i> Lançar Diária
+                        </button>
+                        <button onclick="APP.openModalNovaMedicao()" class="bg-arcco-black text-white font-montserrat font-bold text-xs uppercase px-5 py-2.5 rounded shadow-md hover:bg-gray-800 flex items-center gap-2">
+                            <i data-lucide="plus" class="w-4 h-4 text-arcco-lime"></i> Nova Medição
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Diárias pendentes -->
+                <div id="diarias-pendentes-container" class="hidden bg-orange-50 border border-orange-200 rounded-xl overflow-hidden">
+                    <div class="bg-orange-100 px-5 py-3 flex items-center gap-2">
+                        <i data-lucide="alert-circle" class="w-4 h-4 text-orange-700"></i>
+                        <span class="text-xs font-bold text-orange-700 uppercase tracking-wide">Diárias Lançadas — Aguardando Inclusão em Medição</span>
+                    </div>
+                    <div id="diarias-pendentes-list" class="p-4 space-y-2"></div>
+                </div>
+
+                <!-- Lista de Medições -->
+                <div id="medicoes-list" class="space-y-4"></div>
+            </div>
+
+            <!-- TAB: CURVA S / ABC -->
+            <div id="obra-tab-curvas" class="hidden space-y-6">
+                <!-- Sub-abas Curva S vs ABC -->
+                <div class="flex gap-2 border-b border-gray-200 pb-0">
+                    <button onclick="APP.switchCurvaTab('s')" id="btn-curva-s" class="curva-sub-btn px-4 py-2.5 text-[10px] font-bold uppercase tracking-wider border-b-2 border-arcco-lime text-arcco-black transition-colors">Curva S — Progresso</button>
+                    <button onclick="APP.switchCurvaTab('abc')" id="btn-curva-abc" class="curva-sub-btn px-4 py-2.5 text-[10px] font-bold uppercase tracking-wider border-b-2 border-transparent text-gray-400 hover:text-arcco-black transition-colors">Curva ABC — Serviços</button>
+                    <button onclick="APP.switchCurvaTab('orcamento')" id="btn-curva-orc" class="curva-sub-btn px-4 py-2.5 text-[10px] font-bold uppercase tracking-wider border-b-2 border-transparent text-gray-400 hover:text-arcco-black transition-colors">Orçamento Analítico</button>
+                </div>
+
+                <!-- Curva S -->
+                <div id="curva-tab-s" class="space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4" id="curva-s-cards"></div>
+                    <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                        <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4 border-b border-gray-100 pb-3">Curva S — Avanço Físico Acumulado por Módulo</p>
+                        <div class="h-72"><canvas id="chart-curva-s"></canvas></div>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                        <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4 border-b border-gray-100 pb-3">Distribuição de Custo por Módulo (EAP)</p>
+                        <div class="h-64"><canvas id="chart-custo-modulo"></canvas></div>
+                    </div>
+                </div>
+
+                <!-- Curva ABC -->
+                <div id="curva-tab-abc" class="hidden space-y-6">
+                    <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                        <div class="flex justify-between items-center mb-4 border-b border-gray-100 pb-3">
+                            <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">Curva ABC — Ranking por Impacto no Custo</p>
+                            <div class="flex gap-3 text-[9px] font-bold uppercase">
+                                <span class="bg-arcco-lime text-arcco-black px-2 py-1 rounded">A — Até 80%</span>
+                                <span class="bg-orange-100 text-orange-700 px-2 py-1 rounded">B — 80→95%</span>
+                                <span class="bg-gray-100 text-gray-600 px-2 py-1 rounded">C — 95→100%</span>
+                            </div>
+                        </div>
+                        <div class="h-64 mb-6"><canvas id="chart-curva-abc"></canvas></div>
+                        <div id="tabela-abc" class="overflow-x-auto"></div>
+                    </div>
+                </div>
+
+                <!-- Orçamento Analítico -->
+                <div id="curva-tab-orcamento" class="hidden space-y-4">
+                    <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                        <div class="bg-arcco-black px-5 py-3 grid grid-cols-12 gap-2 text-[9px] font-bold text-gray-400 uppercase">
+                            <div class="col-span-1">Cód.</div>
+                            <div class="col-span-4">Descrição</div>
+                            <div class="col-span-1 text-right">MO</div>
+                            <div class="col-span-1 text-right">Mat.</div>
+                            <div class="col-span-1 text-right">Eq.</div>
+                            <div class="col-span-1 text-right">Outros</div>
+                            <div class="col-span-1 text-right">Custo CD</div>
+                            <div class="col-span-1 text-right">BDI/Taxa</div>
+                            <div class="col-span-1 text-right font-bold text-arcco-lime">Venda</div>
+                        </div>
+                        <div id="tabela-orcamento" class="divide-y divide-gray-100"></div>
+                        <div id="tabela-orcamento-total" class="bg-gray-50 border-t-2 border-gray-300 px-5 py-3 grid grid-cols-12 gap-2"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB: FOLHA DE PONTO (MASTER) -->
+            <div id="obra-tab-ponto" class="hidden space-y-6">
+                <!-- Resumo + Ações -->
+                <div class="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
+                    <div>
+                        <h4 class="font-montserrat font-bold text-lg uppercase text-arcco-black">Folha de Ponto</h4>
+                        <p class="text-xs text-gray-500 font-bold uppercase mt-0.5">Aprovações pendentes e histórico de presença</p>
+                    </div>
+                    <div class="flex gap-2 flex-wrap">
+                        <select id="ponto-filtro-data" class="text-xs font-bold text-arcco-black border border-gray-300 rounded px-3 py-2 w-44" onchange="APP.renderMasterPonto()">
+                            <option value="">Todos os dias</option>
+                        </select>
+                        <select id="ponto-filtro-membro" class="text-xs font-bold text-arcco-black border border-gray-300 rounded px-3 py-2 w-44" onchange="APP.renderMasterPonto()">
+                            <option value="">Todos os membros</option>
+                        </select>
+                    </div>
+                </div>
+                <!-- Alertas de pendentes -->
+                <div id="ponto-pendentes-master" class="hidden bg-orange-50 border border-orange-200 rounded-xl overflow-hidden">
+                    <div class="bg-orange-100 px-5 py-3 flex items-center gap-2">
+                        <i data-lucide="alert-circle" class="w-4 h-4 text-orange-700"></i>
+                        <span class="text-xs font-bold text-orange-700 uppercase tracking-wide">Check-ins Aguardando Aprovação do Gestor</span>
+                    </div>
+                    <div id="ponto-pendentes-master-list" class="p-4 space-y-2"></div>
+                </div>
+                <!-- Tabela de ponto -->
+                <div id="ponto-tabela-master" class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden"></div>
+            </div>
+
+            <!-- TAB: COMPRAS EXTRAS -->
+            <div id="obra-tab-compras" class="hidden">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                    <div class="bg-gray-100 border-b border-gray-200 p-4 flex justify-between items-center">
+                        <h4 class="font-montserrat font-bold text-sm uppercase text-arcco-black flex items-center gap-2">
+                            <i data-lucide="shopping-cart" class="w-4 h-4 text-gray-500"></i> Lançamentos e Compras Extras
+                        </h4>
+                        <button onclick="APP.openModalNovaCompra()" class="text-[10px] font-bold bg-arcco-black text-white px-3 py-1.5 rounded uppercase hover:bg-gray-800">Registrar Compra</button>
+                    </div>
+                    <div id="det-compras-list" class="divide-y divide-gray-100"></div>
+                </div>
+            </div>
         </div>
 
+        <!-- SEC: EQUIPES -->
         <div id="master-section-fornecedores" class="hidden space-y-6">
             <div class="flex justify-between items-end border-b border-gray-300 pb-4">
-                <h3 class="font-montserrat font-bold text-2xl uppercase">Gestão de Equipes</h3>
-                <button onclick="APP.openModalManualForn()" class="bg-arcco-black text-white px-6 py-3 rounded text-xs font-bold uppercase">+ Novo Parceiro</button>
+                <div>
+                    <h3 class="font-montserrat font-bold text-2xl uppercase text-arcco-black">Equipes e Parceiros</h3>
+                    <p class="text-sm text-gray-500 font-semibold mt-1">Homologação e gestão técnica</p>
+                </div>
+                <button onclick="APP.openModalManualForn()" class="bg-arcco-black text-white font-montserrat font-bold text-xs uppercase px-6 py-3 rounded shadow hover:bg-gray-800 flex items-center gap-2">
+                    <i data-lucide="user-plus" class="w-4 h-4 text-arcco-lime"></i> Novo Parceiro
+                </button>
             </div>
-            <div id="forn-groups-container" class="space-y-8"></div>
+            <div id="forn-approval-container" class="hidden bg-orange-50 border-l-4 border-l-arcco-orange rounded-r-lg overflow-hidden shadow-sm">
+                <div class="bg-orange-100 text-orange-800 font-bold text-xs uppercase p-3 flex items-center gap-2">
+                    <i data-lucide="alert-circle" class="w-4 h-4"></i> Aguardando Aprovação
+                </div>
+                <div class="p-4 space-y-3" id="forn-approval-list"></div>
+            </div>
+            <div id="forn-groups-container" class="space-y-6"></div>
         </div>
 
+        <!-- SEC: CLIENTES -->
         <div id="master-section-clientes" class="hidden space-y-6">
             <div class="flex justify-between items-end border-b border-gray-300 pb-4">
-                <h3 class="font-montserrat font-bold text-2xl uppercase">Base de Clientes</h3>
-                <button onclick="APP.openModalNovoCliente()" class="bg-arcco-black text-white px-6 py-3 rounded text-xs font-bold uppercase">+ Novo Cliente</button>
+                <div>
+                    <h3 class="font-montserrat font-bold text-2xl uppercase text-arcco-black">Base de Clientes</h3>
+                    <p class="text-sm text-gray-500 font-semibold mt-1">Gestão de Contratos e Contatos</p>
+                </div>
+                <button onclick="APP.openModalNovoCliente()" class="bg-arcco-black text-white font-montserrat font-bold text-xs uppercase px-6 py-3 rounded shadow hover:bg-gray-800 flex items-center gap-2">
+                    <i data-lucide="user-plus" class="w-4 h-4 text-arcco-lime"></i> Novo Cliente
+                </button>
             </div>
-            <div id="clients-list" class="grid grid-cols-1 md:grid-cols-3 gap-6"></div>
+            <div id="clients-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
         </div>
 
+        <!-- SEC: COMPOSIÇÕES -->
         <div id="master-section-composicoes" class="hidden space-y-6">
-            <div class="border-b border-gray-300 pb-4">
-                <h3 class="font-montserrat font-bold text-2xl uppercase">Tabela de Composições</h3>
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 border-b border-gray-300 pb-4">
+                <div>
+                    <h3 class="font-montserrat font-bold text-2xl uppercase text-arcco-black">Banco de Composições</h3>
+                    <p class="text-sm text-gray-500 font-semibold mt-1">Dicionário de serviços e custos padrão</p>
+                </div>
+                <button onclick="APP.openModalComposicao()" class="bg-arcco-black text-white font-montserrat font-bold text-xs uppercase px-6 py-3 rounded shadow hover:bg-gray-800 flex items-center gap-2">
+                    <i data-lucide="plus" class="w-4 h-4 text-arcco-lime"></i> Adicionar Composição
+                </button>
             </div>
-            <div id="composicoes-container" class="bg-white p-4 rounded-lg shadow-sm border border-gray-200"></div>
-        </div>
-
-        <div id="master-section-obra-detail" class="hidden space-y-6">
-            <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-                <h3 id="det-obra-nome" class="font-montserrat font-black text-3xl text-arcco-black tracking-tighter mb-4">NOME DA OBRA</h3>
-                <div id="det-cronograma-list" class="space-y-4"></div>
-            </div>
+            <div id="composicoes-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
         </div>
     </main>
 
-
-
+    <!-- ── MOBILE BOTTOM NAV (só aparece em telas pequenas) ── -->
+    <nav class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-arcco-black border-t border-gray-800 shadow-2xl safe-area-bottom">
+        <div class="flex h-16">
+            <button onclick="showMasterSection('dash')" class="mob-bottom-btn flex-1 flex flex-col items-center justify-center gap-1 text-gray-500 hover:text-arcco-lime transition-colors active:bg-gray-800">
+                <i data-lucide="hard-hat" class="w-5 h-5"></i>
+                <span class="text-[9px] font-bold uppercase tracking-wider">Obras</span>
+            </button>
+            <button onclick="showMasterSection('composicoes')" class="mob-bottom-btn flex-1 flex flex-col items-center justify-center gap-1 text-gray-500 hover:text-arcco-lime transition-colors active:bg-gray-800">
+                <i data-lucide="book-open" class="w-5 h-5"></i>
+                <span class="text-[9px] font-bold uppercase tracking-wider">Composições</span>
+            </button>
+            <button onclick="showMasterSection('fornecedores')" class="mob-bottom-btn flex-1 flex flex-col items-center justify-center gap-1 text-gray-500 hover:text-arcco-lime transition-colors active:bg-gray-800">
+                <i data-lucide="users" class="w-5 h-5"></i>
+                <span class="text-[9px] font-bold uppercase tracking-wider">Equipes</span>
+            </button>
+            <button onclick="showMasterSection('clientes')" class="mob-bottom-btn flex-1 flex flex-col items-center justify-center gap-1 text-gray-500 hover:text-arcco-lime transition-colors active:bg-gray-800">
+                <i data-lucide="user-circle" class="w-5 h-5"></i>
+                <span class="text-[9px] font-bold uppercase tracking-wider">Clientes</span>
+            </button>
+            <button onclick="window.toggleMobileMenu()" class="flex-1 flex flex-col items-center justify-center gap-1 text-gray-500 hover:text-arcco-lime transition-colors active:bg-gray-800">
+                <i data-lucide="more-horizontal" class="w-5 h-5"></i>
+                <span class="text-[9px] font-bold uppercase tracking-wider">Mais</span>
+            </button>
+        </div>
+    </nav>
+    <!-- Espaço para não cobrir conteúdo com bottom nav no mobile -->
+    <div class="md:hidden h-16"></div>
 </section>
 
+<!-- ============================================================ -->
+<!-- VIEW: FORNECEDOR (EMPREITEIRO LÍDER) -->
+<!-- ============================================================ -->
+<section id="view-fornecedor" class="hidden min-h-screen flex flex-col bg-gray-100">
+    <header class="bg-arcco-black text-white sticky top-0 z-50 shadow-md">
+        <div class="max-w-4xl mx-auto px-6 h-16 flex justify-between items-center">
+            <h2 class="font-montserrat font-black-italic text-2xl tracking-tighter">ARCCO<span class="text-arcco-lime">.</span></h2>
+            <div class="flex items-center gap-4">
+                <span class="text-[10px] font-bold text-gray-400 uppercase hidden sm:block" id="forn-header-name"></span>
+                <!-- Folha de Ponto badge -->
+                <button onclick="APP.switchFornTab('ponto')" id="btn-forn-ponto" class="relative text-gray-400 hover:text-arcco-lime transition-colors" title="Folha de Ponto">
+                    <i data-lucide="clipboard-list" class="w-5 h-5"></i>
+                    <span id="ponto-badge" class="hidden absolute -top-1.5 -right-1.5 w-4 h-4 bg-arcco-red rounded-full text-[8px] text-white font-bold flex items-center justify-center"></span>
+                </button>
+                <button onclick="location.reload()" class="text-xs font-bold text-arcco-black uppercase bg-arcco-lime px-4 py-1.5 rounded hover:brightness-95">Sair</button>
+            </div>
+        </div>
+        <!-- Sub-nav -->
+        <div class="max-w-4xl mx-auto px-6 flex gap-0 border-t border-gray-800">
+            <button onclick="APP.switchFornTab('obras')" class="forn-tab active-forn-tab px-5 py-2.5 text-[10px] font-bold uppercase tracking-widest text-white border-b-2 border-arcco-lime transition-colors">
+                <i data-lucide="hard-hat" class="inline w-3 h-3 mr-1"></i>Obras
+            </button>
+            <button onclick="APP.switchFornTab('ponto')" class="forn-tab px-5 py-2.5 text-[10px] font-bold uppercase tracking-widest text-gray-500 border-b-2 border-transparent hover:text-gray-300 transition-colors">
+                <i data-lucide="clipboard-list" class="inline w-3 h-3 mr-1"></i>Folha de Ponto
+            </button>
+        </div>
+    </header>
+    <!-- Tab: Obras -->
+    <main id="fornecedor-content" class="flex-1 max-w-4xl mx-auto w-full p-4 md:p-6 space-y-6"></main>
+    <!-- Tab: Folha de Ponto -->
+    <main id="fornecedor-ponto" class="hidden flex-1 max-w-4xl mx-auto w-full p-4 md:p-6 space-y-6"></main>
+</section>
+
+<!-- ============================================================ -->
+<!-- VIEW: MEMBRO DE EQUIPE (subordinado) -->
+<!-- ============================================================ -->
+<section id="view-membro" class="hidden min-h-screen flex flex-col bg-gray-100">
+    <header class="bg-arcco-black text-white sticky top-0 z-50 shadow-md">
+        <div class="max-w-2xl mx-auto px-6 h-16 flex justify-between items-center">
+            <div>
+                <h2 class="font-montserrat font-black-italic text-2xl tracking-tighter">ARCCO<span class="text-arcco-lime">.</span></h2>
+            </div>
+            <div class="flex items-center gap-3">
+                <span class="text-[10px] font-bold text-gray-400 uppercase hidden sm:block" id="membro-header-name"></span>
+                <button onclick="location.reload()" class="text-xs font-bold text-arcco-black uppercase bg-arcco-lime px-4 py-1.5 rounded hover:brightness-95">Sair</button>
+            </div>
+        </div>
+    </header>
+    <main id="membro-content" class="flex-1 max-w-2xl mx-auto w-full p-4 md:p-6 space-y-6"></main>
+</section>
+
+<!-- ============================================================ -->
+<!-- VIEW: CLIENTE -->
+<!-- ============================================================ -->
+<section id="view-cliente" class="hidden min-h-screen flex flex-col bg-gray-100">
+    <header class="bg-arcco-black text-white sticky top-0 z-50 shadow-md">
+        <div class="max-w-4xl mx-auto px-6 h-16 flex justify-between items-center">
+            <h2 class="font-montserrat font-black-italic text-2xl tracking-tighter">ARCCO<span class="text-arcco-lime">.</span></h2>
+            <div class="flex items-center gap-4">
+                <span class="text-[10px] font-bold text-gray-400 uppercase hidden sm:block">Portal do Cliente</span>
+                <button onclick="location.reload()" class="text-xs font-bold text-white border border-gray-600 uppercase px-4 py-1.5 rounded hover:bg-gray-800">Sair</button>
+            </div>
+        </div>
+    </header>
+    <main id="cliente-content" class="flex-1 max-w-4xl mx-auto w-full p-4 md:p-6 space-y-6"></main>
+</section>
+
+<!-- ============================================================ -->
+<!-- MODAIS -->
+<!-- ============================================================ -->
+
+<!-- MODAL: NOVA OBRA -->
 <div id="modal-nova-obra" class="modal-overlay fixed inset-0 bg-black/70 hidden z-[500] items-center justify-center p-4">
-    <div class="bg-white rounded-xl w-full max-w-md p-8 shadow-2xl">
-        <h4 class="font-bold uppercase text-sm mb-4">Novo Projeto</h4>
-        <div class="space-y-4">
-            <input type="text" id="new-obra-nome" placeholder="Nome da Obra">
-            <select id="new-obra-cliente"></select>
-            <select id="new-obra-tipo">
-                <option value="OBRA">Obra Ativa</option>
-                <option value="ORÇAMENTO">Orçamento</option>
-            </select>
-            <button onclick="APP.saveNovaObra()" class="w-full bg-arcco-lime text-arcco-black font-bold py-4 rounded uppercase">Criar</button>
-            <button onclick="closeModal()" class="w-full text-xs font-bold text-gray-400 uppercase mt-2">Cancelar</button>
+    <div class="bg-white rounded-xl w-full max-w-md shadow-2xl overflow-hidden">
+        <div class="bg-arcco-black border-b border-gray-800 p-5 flex justify-between items-center">
+            <h4 class="font-montserrat font-bold text-sm uppercase text-white">Nova Obra</h4>
+            <button onclick="APP.closeModal()" class="text-gray-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+        </div>
+        <div class="p-8 space-y-4">
+            <div><label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Nome / Identificação</label><input type="text" id="new-obra-nome" placeholder="Ex: Casa Alphaville" class="mt-1 font-bold text-arcco-black"></div>
+            <div><label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Vincular Cliente</label><select id="new-obra-cliente" class="mt-1 bg-gray-50"></select></div>
+            <div class="pt-2"><label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Tipo de Obra</label>
+                <select id="new-obra-tipo" class="mt-1 text-xs">
+                    <option>Reforma Residencial</option><option>Reforma Comercial</option>
+                    <option>Construção Comercial</option><option>Construção Residencial</option><option>Projetos</option>
+                </select>
+            </div>
+            <button onclick="APP.saveNovaObra()" class="w-full bg-arcco-lime text-arcco-black font-montserrat font-bold uppercase py-4 rounded-lg shadow mt-6 hover:brightness-95">Criar Base da Obra</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: NOVA COMPRA -->
+<div id="modal-nova-compra" class="modal-overlay fixed inset-0 bg-black/70 hidden z-[500] items-center justify-center p-4">
+    <div class="bg-white rounded-xl w-full max-w-md shadow-2xl overflow-hidden">
+        <div class="bg-arcco-black border-b border-gray-800 p-5 flex justify-between items-center">
+            <h4 class="font-montserrat font-bold text-sm uppercase text-white">Registrar Compra</h4>
+            <button onclick="APP.closeModal()" class="text-gray-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+        </div>
+        <div class="p-6 space-y-4">
+            <p class="text-[10px] uppercase text-gray-500 font-bold bg-gray-50 p-3 rounded border border-gray-200">Lançamentos de parceiros requerem aprovação da Arcco.</p>
+            <div><label class="text-[10px] font-bold text-gray-400 uppercase">Item / Descrição</label><input type="text" id="compra-desc" class="mt-1 font-bold"></div>
+            <div class="grid grid-cols-2 gap-4">
+                <div><label class="text-[10px] font-bold text-gray-400 uppercase">Valor Pago (R$)</label><input type="number" id="compra-valor" class="mt-1 font-bold"></div>
+                <div><label class="text-[10px] font-bold text-gray-400 uppercase">Data</label><input type="date" id="compra-data" class="mt-1"></div>
+            </div>
+            <div><label class="text-[10px] font-bold text-gray-400 uppercase flex items-center gap-1"><i data-lucide="link" class="w-3 h-3"></i> Link do Comprovante</label><input type="url" id="compra-link" class="mt-1 text-xs"></div>
+            <button onclick="APP.saveNovaCompra()" class="w-full bg-arcco-black text-white font-montserrat font-bold uppercase py-4 rounded-lg mt-6 hover:bg-gray-800">Adicionar Despesa</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: NOVO CLIENTE -->
+<div id="modal-novo-cliente" class="modal-overlay fixed inset-0 bg-black/70 hidden z-[500] items-center justify-center p-4">
+    <div class="bg-white rounded-xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+        <div class="bg-arcco-black border-b border-gray-800 p-5 flex justify-between items-center shrink-0">
+            <h4 id="modal-cli-title" class="font-montserrat font-bold text-sm uppercase text-white">Ficha do Cliente</h4>
+            <button onclick="APP.closeModal()" class="text-gray-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+        </div>
+        <div class="p-6 space-y-4 overflow-y-auto">
+            <div class="grid grid-cols-2 gap-4">
+                <div class="col-span-2"><label class="text-[10px] font-bold text-gray-500 uppercase">Nome Completo / Empresa</label><input type="text" id="cli-nome" class="mt-1 font-bold"></div>
+                <div><label class="text-[10px] font-bold text-gray-500 uppercase">WhatsApp</label><input type="text" id="cli-tel" class="mt-1"></div>
+                <div><label class="text-[10px] font-bold text-gray-500 uppercase">Login de Acesso</label><input type="text" id="cli-login" class="mt-1 bg-gray-50"></div>
+                <div class="col-span-2"><label class="text-[10px] font-bold text-gray-500 uppercase">Senha</label><input type="text" id="cli-senha" class="mt-1 bg-gray-50"></div>
+            </div>
+            <div><label class="text-[10px] font-bold text-gray-500 uppercase">Endereço</label><input type="text" id="cli-end" class="mt-1"></div>
+            <div><label class="text-[10px] font-bold text-gray-500 uppercase">Anotações</label><textarea id="cli-notas" class="mt-1 h-20"></textarea></div>
+        </div>
+        <div class="p-5 border-t border-gray-200 bg-gray-50 shrink-0">
+            <button onclick="APP.saveNovoCliente()" class="w-full bg-arcco-black text-white font-montserrat font-bold uppercase py-3.5 rounded-lg shadow hover:bg-gray-800">Salvar Dados</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: FORNECEDOR INTERNO -->
+<div id="modal-manual-forn" class="modal-overlay fixed inset-0 bg-black/70 hidden z-[500] items-center justify-center p-4">
+    <div class="bg-white rounded-xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+        <div class="bg-arcco-black border-b border-gray-800 p-5 flex justify-between items-center shrink-0">
+            <h4 id="man-forn-title" class="font-montserrat font-bold text-sm uppercase text-white">Ficha do Parceiro</h4>
+            <button onclick="APP.closeModal()" class="text-gray-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+        </div>
+        <div class="p-6 space-y-4 overflow-y-auto">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="md:col-span-2"><label class="text-[10px] font-bold text-gray-500 uppercase">Nome / Empresa</label><input type="text" id="man-nome" class="mt-1 font-bold"></div>
+                <div><label class="text-[10px] font-bold text-gray-500 uppercase">WhatsApp</label><input type="text" id="man-tel" class="mt-1"></div>
+                <div><label class="text-[10px] font-bold text-gray-500 uppercase">E-mail</label><input type="email" id="man-email" class="mt-1"></div>
+                <div><label class="text-[10px] font-bold text-gray-500 uppercase">Login</label><input type="text" id="man-login" class="mt-1 bg-gray-50"></div>
+                <div><label class="text-[10px] font-bold text-gray-500 uppercase">Senha</label><input type="text" id="man-senha" class="mt-1 bg-gray-50"></div>
+                <div class="md:col-span-2"><label class="text-[10px] font-bold text-gray-500 uppercase">Especialidade</label><input type="text" id="man-espec" class="mt-1"></div>
+                <!-- Diária padrão -->
+                <div class="md:col-span-2 bg-arcco-lime/10 p-4 rounded border border-arcco-lime/30">
+                    <label class="text-[10px] font-bold text-arcco-black uppercase tracking-widest block mb-1 flex items-center gap-1"><i data-lucide="banknote" class="w-3 h-3"></i> Valor da Diária Padrão (R$)</label>
+                    <input type="number" id="man-diaria" placeholder="Ex: 250.00 — usado nos lançamentos de pagamento" class="mt-1 font-bold text-arcco-black">
+                </div>
+            </div>
+            <div class="bg-gray-50 p-4 rounded border border-gray-200">
+                <h5 class="text-[10px] font-bold text-arcco-black uppercase tracking-widest border-b border-gray-200 pb-2 mb-3">Endereço</h5>
+                <div class="grid grid-cols-12 gap-3">
+                    <div class="col-span-12 md:col-span-9"><label class="text-[9px] font-bold text-gray-500 uppercase">Rua</label><input type="text" id="man-rua" class="mt-1"></div>
+                    <div class="col-span-12 md:col-span-3"><label class="text-[9px] font-bold text-gray-500 uppercase">Número</label><input type="text" id="man-num" class="mt-1"></div>
+                    <div class="col-span-12 md:col-span-6"><label class="text-[9px] font-bold text-gray-500 uppercase">Bairro</label><input type="text" id="man-bairro" class="mt-1"></div>
+                    <div class="col-span-12 md:col-span-6"><label class="text-[9px] font-bold text-gray-500 uppercase">Cidade / UF</label><input type="text" id="man-cidade" class="mt-1"></div>
+                </div>
+            </div>
+            <div class="bg-arcco-lime/10 p-4 rounded border border-arcco-lime/40 flex flex-col md:flex-row gap-4 items-start md:items-center">
+                <div class="flex-1">
+                    <label class="flex items-center gap-3 cursor-pointer">
+                        <div class="relative">
+                            <input type="checkbox" id="man-is-lider" class="sr-only toggle-checkbox" onchange="APP.toggleLiderSelect()">
+                            <div class="block bg-gray-300 w-10 h-6 rounded-full toggle-label border-2 border-transparent"></div>
+                            <div class="dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full shadow"></div>
+                        </div>
+                        <div class="flex flex-col">
+                            <span class="text-xs font-bold text-arcco-black uppercase">É Líder de Equipe?</span>
+                            <span class="text-[9px] text-gray-500">Ative se for responsável pela própria equipe.</span>
+                        </div>
+                    </label>
+                </div>
+                <div id="div-man-vinculo" class="w-full md:w-1/2 hidden">
+                    <label class="text-[9px] font-bold text-gray-500 uppercase">Vincular a qual Líder?</label>
+                    <select id="man-vinculo" class="mt-1 text-xs border-orange-200 bg-white"></select>
+                </div>
+            </div>
+        </div>
+        <div class="p-5 border-t border-gray-200 bg-gray-50 shrink-0">
+            <button onclick="APP.saveManualForn()" class="w-full bg-arcco-black text-white font-montserrat font-bold uppercase py-3.5 rounded-lg shadow hover:bg-gray-800">Salvar Parceiro</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: REG FORNECEDOR EXTERNO -->
+<div id="modal-reg-forn" class="modal-overlay fixed inset-0 bg-black/70 hidden z-[500] items-center justify-center p-4">
+    <div class="bg-white rounded-xl w-full max-w-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+        <div class="bg-arcco-black border-b border-gray-800 p-5 flex justify-between items-center shrink-0">
+            <h4 class="font-montserrat font-bold text-sm uppercase text-white">Cadastro de Parceiro</h4>
+            <button onclick="APP.closeModal()" class="text-gray-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+        </div>
+        <div class="p-6 space-y-4 overflow-y-auto">
+            <div><label class="text-[10px] font-bold text-gray-500 uppercase">Nome / Empresa</label><input type="text" id="reg-nome" class="mt-1 font-bold"></div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div><label class="text-[10px] font-bold text-gray-500 uppercase">CNPJ ou CPF</label><input type="text" id="reg-doc" class="mt-1"></div>
+                <div><label class="text-[10px] font-bold text-gray-500 uppercase">WhatsApp</label><input type="text" id="reg-tel" class="mt-1"></div>
+                <div><label class="text-[10px] font-bold text-gray-500 uppercase">E-mail</label><input type="email" id="reg-email" class="mt-1"></div>
+                <div><label class="text-[10px] font-bold text-gray-500 uppercase">Especialidade</label><input type="text" id="reg-espec" class="mt-1"></div>
+            </div>
+            <div class="bg-gray-50 p-4 rounded border border-gray-200">
+                <div class="grid grid-cols-12 gap-3">
+                    <div class="col-span-9"><label class="text-[9px] font-bold text-gray-500 uppercase">Rua</label><input type="text" id="reg-rua" class="mt-1"></div>
+                    <div class="col-span-3"><label class="text-[9px] font-bold text-gray-500 uppercase">Número</label><input type="text" id="reg-num" class="mt-1"></div>
+                    <div class="col-span-6"><label class="text-[9px] font-bold text-gray-500 uppercase">Bairro</label><input type="text" id="reg-bairro" class="mt-1"></div>
+                    <div class="col-span-6"><label class="text-[9px] font-bold text-gray-500 uppercase">Cidade / UF</label><input type="text" id="reg-cidade" class="mt-1"></div>
+                </div>
+            </div>
+        </div>
+        <div class="p-5 border-t border-gray-200 bg-gray-50 shrink-0 flex gap-3">
+            <button onclick="APP.closeModal()" class="w-1/3 bg-gray-200 text-gray-600 font-bold uppercase py-3.5 rounded-lg text-xs hover:bg-gray-300">Cancelar</button>
+            <button onclick="APP.submitRegForn()" class="w-2/3 bg-arcco-lime text-arcco-black font-montserrat font-bold uppercase py-3.5 rounded-lg hover:brightness-95">Enviar para Aprovação</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: GESTORES -->
+<div id="modal-gestores" class="modal-overlay fixed inset-0 bg-black/70 hidden z-[500] items-center justify-center p-4">
+    <div class="bg-white rounded-xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+        <div class="bg-arcco-black border-b border-gray-800 p-5 flex justify-between items-center shrink-0">
+            <h4 class="font-montserrat font-bold text-sm uppercase text-white flex items-center gap-2"><i data-lucide="shield" class="w-4 h-4 text-arcco-lime"></i> Equipe Gestora</h4>
+            <button onclick="APP.closeModal()" class="text-gray-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+        </div>
+        <div class="p-6 space-y-4 overflow-y-auto">
+            <div class="space-y-2 mb-6" id="list-gestores"></div>
+            <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                <h5 class="text-[10px] font-bold text-arcco-black uppercase tracking-widest border-b border-gray-200 pb-2 mb-3">Cadastrar Novo Gestor</h5>
+                <div class="space-y-3">
+                    <div><label class="text-[9px] font-bold text-gray-500 uppercase">Nome</label><input type="text" id="gest-nome" class="mt-1 font-bold"></div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div><label class="text-[9px] font-bold text-gray-500 uppercase">Login</label><input type="text" id="gest-login" class="mt-1"></div>
+                        <div><label class="text-[9px] font-bold text-gray-500 uppercase">Senha</label><input type="text" id="gest-senha" class="mt-1"></div>
+                    </div>
+                    <button onclick="APP.saveNovoGestor()" class="w-full bg-arcco-black text-white font-montserrat font-bold text-xs uppercase py-3 rounded shadow hover:bg-gray-800">Adicionar à Equipe</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: COMPOSIÇÃO -->
+<div id="modal-composicao" class="modal-overlay fixed inset-0 bg-black/70 hidden z-[500] items-center justify-center p-4">
+    <div class="bg-white rounded-xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+        <div class="bg-arcco-black border-b border-gray-800 p-5 flex justify-between items-center shrink-0">
+            <h4 id="modal-comp-title" class="font-montserrat font-bold text-sm uppercase text-white">Nova Composição</h4>
+            <button onclick="APP.closeModal()" class="text-gray-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+        </div>
+        <div class="p-6 space-y-4 overflow-y-auto">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div><label class="text-[10px] font-bold text-gray-500 uppercase">Código</label><input type="text" id="comp-codigo" placeholder="LC001" class="mt-1 font-bold uppercase"></div>
+                <div class="md:col-span-2"><label class="text-[10px] font-bold text-gray-500 uppercase">Descrição Base</label><input type="text" id="comp-desc" class="mt-1 font-bold"></div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 bg-gray-50 p-4 rounded-lg border border-gray-200">
+                <div><label class="text-[10px] font-bold text-gray-500 uppercase">Mão de Obra</label><input type="number" id="comp-mo" placeholder="0.00" class="mt-1"></div>
+                <div><label class="text-[10px] font-bold text-gray-500 uppercase">Material</label><input type="number" id="comp-mat" placeholder="0.00" class="mt-1"></div>
+                <div><label class="text-[10px] font-bold text-gray-500 uppercase">Equipam.</label><input type="number" id="comp-eq" placeholder="0.00" class="mt-1"></div>
+                <div><label class="text-[10px] font-bold text-gray-500 uppercase">Outros</label><input type="number" id="comp-ou" placeholder="0.00" class="mt-1"></div>
+                <div class="md:col-span-4 border-t border-gray-200 pt-3">
+                    <label class="text-[10px] font-bold text-gray-500 uppercase">BDI Padrão (%)</label>
+                    <input type="number" id="comp-bdi" placeholder="0" class="mt-1 w-full md:w-1/4 font-bold">
+                </div>
+            </div>
+        </div>
+        <div class="p-5 border-t border-gray-200 bg-gray-50 shrink-0">
+            <button onclick="APP.saveComposicao()" class="w-full bg-arcco-lime text-arcco-black font-montserrat font-bold uppercase py-3.5 rounded-lg hover:brightness-95">Salvar Composição</button>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- NOVO: MODAL NOVA MEDIÇÃO -->
+<!-- ============================================================ -->
+<div id="modal-nova-medicao" class="modal-overlay fixed inset-0 bg-black/70 hidden z-[500] items-center justify-center p-4">
+    <div class="bg-white rounded-xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+        <div class="bg-arcco-black border-b border-gray-800 p-5 flex justify-between items-center shrink-0">
+            <h4 class="font-montserrat font-bold text-sm uppercase text-white flex items-center gap-2">
+                <i data-lucide="wallet" class="w-4 h-4 text-arcco-lime"></i> Nova Medição / Ciclo de Pagamento
+            </h4>
+            <button onclick="APP.closeModal()" class="text-gray-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+        </div>
+        <div class="p-6 space-y-5 overflow-y-auto">
+            <p class="text-[10px] font-bold text-gray-500 uppercase bg-gray-50 p-3 rounded border border-gray-200">
+                Registre o ciclo de medição (semanal ou quinzenal). O valor da ADM será calculado automaticamente sobre o custo medido.
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label class="text-[10px] font-bold text-gray-500 uppercase">Período</label>
+                    <select id="med-periodo" class="mt-1 font-bold text-arcco-black">
+                        <option value="semanal">Semanal</option>
+                        <option value="quinzenal">Quinzenal</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold text-gray-500 uppercase">Data Início do Ciclo</label>
+                    <input type="date" id="med-inicio" class="mt-1">
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold text-gray-500 uppercase">Data Fim do Ciclo</label>
+                    <input type="date" id="med-fim" class="mt-1">
+                </div>
+            </div>
+
+            <!-- Etapas medidas -->
+            <div>
+                <label class="text-[10px] font-bold text-gray-500 uppercase block mb-2">Etapas Executadas neste Ciclo</label>
+                <div id="med-etapas-list" class="space-y-2 max-h-60 overflow-y-auto pr-1"></div>
+            </div>
+
+            <!-- Diárias do período -->
+            <div>
+                <label class="text-[10px] font-bold text-gray-500 uppercase block mb-2">Diárias Pagas neste Ciclo</label>
+                <div id="med-diarias-list" class="space-y-2 max-h-48 overflow-y-auto pr-1 bg-gray-50 p-3 rounded border border-gray-200">
+                    <p class="text-[10px] text-gray-400 font-bold uppercase text-center">Nenhuma diária lançada ainda para esta obra.</p>
+                </div>
+                <div class="mt-2 flex justify-between items-center bg-orange-50 p-3 rounded border border-orange-200">
+                    <span class="text-[10px] font-bold text-orange-700 uppercase">Total de Diárias Pagas:</span>
+                    <span id="med-total-diarias" class="font-montserrat font-bold text-sm text-orange-700">R$ 0,00</span>
+                </div>
+            </div>
+
+            <!-- Totais calculados -->
+            <div class="bg-arcco-black p-5 rounded-xl space-y-3">
+                <div class="flex justify-between items-center">
+                    <span class="text-[10px] font-bold text-gray-400 uppercase">Custo Medido (Serviços + Compras):</span>
+                    <span id="med-custo-display" class="font-montserrat font-bold text-sm text-white">R$ 0,00</span>
+                </div>
+                <div class="flex justify-between items-center border-t border-gray-700 pt-3">
+                    <span class="text-[10px] font-bold text-gray-400 uppercase">Taxa ADM sobre o Ciclo:</span>
+                    <span id="med-adm-display" class="font-montserrat font-bold text-sm text-arcco-lime">R$ 0,00</span>
+                </div>
+                <div class="flex justify-between items-center border-t border-gray-700 pt-3">
+                    <span class="text-xs font-bold text-white uppercase">Total a Receber (ADM + Diárias):</span>
+                    <span id="med-total-display" class="font-montserrat font-black-italic text-xl text-arcco-lime">R$ 0,00</span>
+                </div>
+            </div>
+
+            <div>
+                <label class="text-[10px] font-bold text-gray-500 uppercase">Observações</label>
+                <textarea id="med-obs" class="mt-1 h-16" placeholder="Ex: Chuvas atrasaram 2 dias..."></textarea>
+            </div>
+        </div>
+        <div class="p-5 border-t border-gray-200 bg-gray-50 shrink-0">
+            <button onclick="APP.saveMedicao()" class="w-full bg-arcco-lime text-arcco-black font-montserrat font-bold uppercase py-4 rounded-lg shadow hover:brightness-95">Registrar Medição</button>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- NOVO: MODAL LANÇAR DIÁRIA -->
+<!-- ============================================================ -->
+<div id="modal-nova-diaria" class="modal-overlay fixed inset-0 bg-black/70 hidden z-[500] items-center justify-center p-4">
+    <div class="bg-white rounded-xl w-full max-w-md shadow-2xl overflow-hidden">
+        <div class="bg-arcco-black border-b border-gray-800 p-5 flex justify-between items-center">
+            <h4 class="font-montserrat font-bold text-sm uppercase text-white flex items-center gap-2">
+                <i data-lucide="user-check" class="w-4 h-4 text-arcco-orange"></i> Lançar Diária de Trabalhador
+            </h4>
+            <button onclick="APP.closeModal()" class="text-gray-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+        </div>
+        <div class="p-6 space-y-4">
+            <p class="text-[10px] font-bold text-gray-500 uppercase bg-orange-50 p-3 rounded border border-orange-200">
+                Registre o pagamento diário de cada trabalhador. As diárias ficam pendentes até serem incluídas em uma medição.
+            </p>
+            <div>
+                <label class="text-[10px] font-bold text-gray-500 uppercase">Trabalhador / Equipe</label>
+                <select id="diaria-forn" class="mt-1 font-bold text-arcco-black"></select>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="text-[10px] font-bold text-gray-500 uppercase">Data da Diária</label>
+                    <input type="date" id="diaria-data" class="mt-1">
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold text-gray-500 uppercase">Quantidade de Diárias</label>
+                    <input type="number" id="diaria-qtd" placeholder="1" min="1" class="mt-1 font-bold" oninput="APP.calcDiaria()">
+                </div>
+            </div>
+            <div>
+                <label class="text-[10px] font-bold text-gray-500 uppercase">Valor por Diária (R$)</label>
+                <input type="number" id="diaria-valor-unit" placeholder="0.00" class="mt-1 font-bold text-arcco-black" oninput="APP.calcDiaria()">
+            </div>
+            <div class="bg-arcco-lime/10 p-3 rounded border border-arcco-lime/40 flex justify-between items-center">
+                <span class="text-[10px] font-bold text-gray-700 uppercase">Total a Pagar:</span>
+                <span id="diaria-total-display" class="font-montserrat font-bold text-lg text-arcco-black">R$ 0,00</span>
+            </div>
+            <div>
+                <label class="text-[10px] font-bold text-gray-500 uppercase">Descrição do Serviço do Dia</label>
+                <input type="text" id="diaria-desc" placeholder="Ex: Assentamento de piso, Reboco externo..." class="mt-1">
+            </div>
+        </div>
+        <div class="p-5 border-t border-gray-200 bg-gray-50">
+            <button onclick="APP.saveDiaria()" class="w-full bg-arcco-black text-white font-montserrat font-bold uppercase py-4 rounded-lg shadow hover:bg-gray-800">Registrar Diária</button>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- NOVO: MODAL CHECK-IN (MEMBRO / LÍDER) -->
+<!-- ============================================================ -->
+<div id="modal-checkin" class="modal-overlay fixed inset-0 bg-black/70 hidden z-[500] items-center justify-center p-4">
+    <div class="bg-white rounded-xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+        <div class="bg-arcco-black border-b border-gray-800 p-5 flex justify-between items-center shrink-0">
+            <h4 class="font-montserrat font-bold text-sm uppercase text-white flex items-center gap-2">
+                <i data-lucide="fingerprint" class="w-4 h-4 text-arcco-lime"></i> Registrar Presença
+            </h4>
+            <button onclick="APP.closeModal()" class="text-gray-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+        </div>
+        <!-- corpo dinâmico injetado por JS -->
+        <div id="checkin-modal-body" class="p-6 space-y-4 overflow-y-auto flex-1"></div>
+        <div class="p-5 border-t border-gray-200 bg-gray-50 shrink-0">
+            <button onclick="APP.saveCheckin()" class="w-full bg-arcco-lime text-arcco-black font-montserrat font-bold uppercase py-4 rounded-lg shadow hover:brightness-95">Confirmar Presença</button>
         </div>
     </div>
 </div>
 
 <script type="module" src="js/main.js"></script>
+
 </body>
 </html>

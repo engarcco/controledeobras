@@ -2,14 +2,15 @@
 // ui.js — Toast, Modal helpers, Navegação e Menus
 // ============================================================
 
+// ── Toast ─────────────────────────────────────────────────────
 export const showToast = (msg) => {
     const t = document.getElementById('toast');
-    if(!t) return;
     document.getElementById('toast-text').innerText = msg;
     t.classList.remove('translate-x-[150%]');
     setTimeout(() => t.classList.add('translate-x-[150%]'), 3000);
 };
 
+// ── Modal helpers ─────────────────────────────────────────────
 export const openModal = (id) => {
     const el = document.getElementById(id);
     if(el){ el.classList.remove('hidden'); el.classList.add('flex'); }
@@ -22,71 +23,114 @@ export const closeModal = () => {
     });
 };
 
+// ── Mobile menu toggle ─────────────────────────────────────────
 export const toggleMobileMenu = () => {
     const menu = document.getElementById('mobile-menu');
     const btn  = document.getElementById('mobile-menu-btn');
     if(!menu) return;
     const isOpen = !menu.classList.contains('hidden');
     menu.classList.toggle('hidden');
-    btn.innerHTML = isOpen 
-        ? '<i data-lucide="menu" class="w-6 h-6"></i>' 
+    btn.innerHTML = isOpen
+        ? '<i data-lucide="menu" class="w-6 h-6"></i>'
         : '<i data-lucide="x" class="w-6 h-6"></i>';
     lucide.createIcons();
 };
+window.toggleMobileMenu = toggleMobileMenu;
 
+// ── Master section nav ────────────────────────────────────────
 export const showMasterSection = (sec) => {
-    // Lista todas as seções para garantir que nada fique aberto por baixo
-    const sections = ['dash','obra-detail','fornecedores','clientes','composicoes', 'orcamentos'];
-    
-    sections.forEach(s => {
-        const el = document.getElementById(`master-section-${s}`);
-        if (el) el.classList.add('hidden');
+    ['dash','obra-detail','fornecedores','clientes','composicoes'].forEach(s => {
+        document.getElementById(`master-section-${s}`)?.classList.add('hidden');
     });
 
-    // Remove destaque dos botões do menu
-    document.querySelectorAll('.nav-btn').forEach(btn => {
-        btn.classList.remove('active', 'border-arcco-lime', 'text-white');
+    // Desktop nav active state
+    document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active','border-arcco-lime','text-white'));
+    const map = {dash:'Obras',composicoes:'Composições',fornecedores:'Equipes',clientes:'Clientes'};
+    const lbl = map[sec];
+    Array.from(document.querySelectorAll('.nav-btn')).find(b=>b.innerText.trim()===lbl)?.classList.add('active','border-arcco-lime','text-white');
+
+    // Mobile dropdown nav
+    document.querySelectorAll('.mob-nav-btn').forEach(btn => {
+        btn.classList.remove('bg-gray-800','text-white');
+        btn.classList.add('text-gray-300');
     });
-    
-    // Mostra a seção desejada
-    const target = document.getElementById(`master-section-${sec}`);
-    if (target) {
-        target.classList.remove('hidden');
-    } else {
-        console.error(`A seção master-section-${sec} não foi encontrada no HTML.`);
+    Array.from(document.querySelectorAll('.mob-nav-btn'))
+        .find(b => b.innerText.trim().startsWith(lbl||'__'))
+        ?.classList.add('bg-gray-800','text-white');
+
+    // Mobile bottom nav
+    document.querySelectorAll('.mob-bottom-btn').forEach(btn => {
+        btn.classList.remove('text-arcco-lime');
+        btn.classList.add('text-gray-500');
+    });
+    if(lbl){
+        Array.from(document.querySelectorAll('.mob-bottom-btn'))
+            .find(b => b.querySelector('span')?.innerText.trim()===lbl)
+            ?.classList.replace('text-gray-500','text-arcco-lime');
     }
 
-    // Recria os ícones (Lucide)
-    if (window.lucide) window.lucide.createIcons();
+    document.getElementById(`master-section-${sec}`)?.classList.remove('hidden');
+    lucide.createIcons();
+};
+window.showMasterSection = showMasterSection;
+
+// ── Badge status ponto ────────────────────────────────────────
+export const pontoStatusBadge = (ci) => {
+    if(ci.statusMaster==='aprovado')
+        return `<span class="text-[8px] font-bold uppercase px-2 py-0.5 rounded badge-pago flex items-center gap-1"><i data-lucide="shield-check" class="w-2.5 h-2.5"></i> Aprovado</span>`;
+    if(ci.statusMaster==='recusado')
+        return `<span class="text-[8px] font-bold uppercase px-2 py-0.5 rounded bg-red-100 text-red-700 border border-red-200">Recusado</span>`;
+    if(ci.statusLider==='aprovado')
+        return `<span class="text-[8px] font-bold uppercase px-2 py-0.5 rounded badge-parcial flex items-center gap-1"><i data-lucide="clock" class="w-2.5 h-2.5"></i> Ag. Master</span>`;
+    if(ci.statusLider==='recusado')
+        return `<span class="text-[8px] font-bold uppercase px-2 py-0.5 rounded bg-red-100 text-red-700 border border-red-200">Rec. Líder</span>`;
+    return `<span class="text-[8px] font-bold uppercase px-2 py-0.5 rounded badge-pendente flex items-center gap-1"><i data-lucide="clock" class="w-2.5 h-2.5"></i> Ag. Líder</span>`;
 };
 
+// ── Obra tab switcher ─────────────────────────────────────────
 export const switchObraTab = (tab) => {
     ['cronograma','curvas','medicoes','ponto','compras'].forEach(t => {
-        const el = document.getElementById(`obra-tab-${t}`);
-        if(el) el.classList.add('hidden');
+        document.getElementById(`obra-tab-${t}`)?.classList.add('hidden');
     });
     document.querySelectorAll('.obra-tab-btn').forEach(b => {
         b.classList.remove('active-tab','border-arcco-lime','text-arcco-black');
+        b.classList.add('border-transparent','text-gray-400');
     });
-    const target = document.getElementById(`obra-tab-${tab}`);
-    if(target) target.classList.remove('hidden');
-    
-    const btn = Array.from(document.querySelectorAll('.obra-tab-btn')).find(b => b.getAttribute('onclick')?.includes(`'${tab}'`));
-    if(btn) btn.classList.add('active-tab','border-arcco-lime','text-arcco-black');
-    
+    document.getElementById(`obra-tab-${tab}`)?.classList.remove('hidden');
+    const active = Array.from(document.querySelectorAll('.obra-tab-btn')).find(b => b.getAttribute('onclick').includes(`'${tab}'`));
+    if(active){
+        active.classList.add('active-tab','border-arcco-lime','text-arcco-black');
+        active.classList.remove('border-transparent','text-gray-400');
+    }
     lucide.createIcons();
 };
+window.switchObraTab = switchObraTab;
 
-// ESSENCIAL: Função que estava faltando e causou o erro
-export const pontoStatusBadge = (ci) => {
-    if(ci.statusMaster==='aprovado')
-        return `<span class="text-[8px] font-bold uppercase px-2 py-0.5 rounded bg-green-100 text-green-700 border border-green-200">Aprovado</span>`;
-    if(ci.statusMaster==='recusado')
-        return `<span class="text-[8px] font-bold uppercase px-2 py-0.5 rounded bg-red-100 text-red-700 border border-red-200">Recusado</span>`;
-    return `<span class="text-[8px] font-bold uppercase px-2 py-0.5 rounded bg-yellow-100 text-yellow-700 border border-yellow-200">Pendente</span>`;
+// ── Forn tab switcher ─────────────────────────────────────────
+export const switchFornTab = (tab) => {
+    ['obras','ponto'].forEach(t => {
+        const content = document.getElementById(t==='obras'?'fornecedor-content':'fornecedor-ponto');
+        if(content) content.classList.add('hidden');
+    });
+    document.querySelectorAll('.forn-tab').forEach(b => {
+        b.classList.remove('active-forn-tab','border-arcco-lime','text-white');
+        b.classList.add('border-transparent','text-gray-500');
+    });
+    const activeContent = document.getElementById(tab==='obras'?'fornecedor-content':'fornecedor-ponto');
+    if(activeContent) activeContent.classList.remove('hidden');
+    const activeBtn = Array.from(document.querySelectorAll('.forn-tab')).find(b => b.getAttribute('onclick').includes(`'${tab}'`));
+    if(activeBtn){
+        activeBtn.classList.add('active-forn-tab','border-arcco-lime','text-white');
+        activeBtn.classList.remove('border-transparent','text-gray-500');
+    }
 };
 
-window.toggleMobileMenu = toggleMobileMenu;
-window.showMasterSection = showMasterSection;
-window.switchObraTab = switchObraTab;
-window.closeModal = closeModal;
+// ── Click fora do menu mobile fecha ───────────────────────────
+document.addEventListener('click', (e) => {
+    const menu = document.getElementById('mobile-menu');
+    const btn  = document.getElementById('mobile-menu-btn');
+    if(!menu || menu.classList.contains('hidden')) return;
+    if(!menu.contains(e.target) && !btn.contains(e.target)) {
+        toggleMobileMenu();
+    }
+});

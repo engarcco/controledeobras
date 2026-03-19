@@ -1,87 +1,148 @@
 // ============================================================
-// main.js — Ponto de entrada ÚNICO do ARCCO HUB
+// main.js — Ponto de entrada do ARCCO HUB
+// Importa todos os módulos e monta o objeto global window.APP
+//
+// COMO USAR: substitua o <script type="module"> inline do HTML por:
+//   <script type="module" src="js/main.js"></script>
 // ============================================================
-import { STATE } from './config.js';
+
+// ── Config / State / Helpers (Firebase já iniciado aqui) ─────
+import { STATE }    from './config.js';
+
+// ── UI ────────────────────────────────────────────────────────
+import { showToast, openModal, closeModal,
+         toggleMobileMenu, showMasterSection,
+         pontoStatusBadge, switchObraTab, switchFornTab } from './ui.js';
+
+// ── Auth + Sync ───────────────────────────────────────────────
 import { setupAuth } from './auth.js';
-import { 
-    showToast, openModal, closeModal, 
-    toggleMobileMenu, showMasterSection, 
-    pontoStatusBadge, switchObraTab, switchFornTab 
-} from './ui.js';
 
-// Importações de Obras
-import { 
-    renderMasterObrasGrid, openObraDetail, duplicarObra, 
-    deleteObraCompleta, renderObraDetail, saveNovaObra,
-    updateTeamSelection, calcBudgetValidation 
-} from './obras.js';
+// ── Obras / Cronograma ────────────────────────────────────────
+import { renderMasterObrasGrid, openObraDetail, duplicarObra,
+         deleteObraCompleta, renderObraDetail,
+         setTipoContratacao, calcTotalTask, calcPERT,
+         updateInicioStyle, handleDepChange,
+         saveTaskToObra, editTask, resetTaskForm,
+         toggleTaskStatus, deleteTask, toggleAtencao,
+         saveModuloObra, editModuloObra, cancelEditModulo, deleteModuloObra,
+         saveNovaObra, updateObraConfig,
+         openModalNovaCompra, saveNovaCompra, aprovarCompra, deleteCompra } from './obras.js';
 
-// Importações de Medições
-import { 
-    renderMedicoes, openModalNovaMedicao, calcMedicaoTotal, 
-    saveMedicao, toggleStatusAdm, deleteMedicao, 
-    openModalNovaDiaria, calcDiaria, saveDiaria, deleteDiaria 
-} from './medicoes.js';
+// ── Medições ─────────────────────────────────────────────────
+import { renderMedicoes, openModalNovaMedicao, calcMedicaoTotal,
+         saveMedicao, toggleStatusAdm, deleteMedicao,
+         openModalNovaDiaria, calcDiaria, saveDiaria, deleteDiaria } from './medicoes.js';
 
-// Importações de Curvas e Gráficos
-import { switchCurvaTab, renderCurvaS, renderCurvaABC, renderOrcamentoAnalitico } from './curvas.js';
+// ── Curvas ────────────────────────────────────────────────────
+import { switchCurvaTab, renderCurvaS,
+         renderCurvaABC, renderOrcamentoAnalitico } from './curvas.js';
 
-// Importações de Ponto Eletrônico
-import { 
-    renderMasterPonto, aprovarCheckin, deleteCheckin, 
-    renderFornPontoLider, liderAprovarCheckin, 
-    abrirCheckin, abrirCheckinObra, _toggleCheckinObraRow, 
-    saveCheckin as _saveCheckinCore 
-} from './ponto.js';
+// ── Folha de Ponto ────────────────────────────────────────────
+import { renderMasterPonto, aprovarCheckin, deleteCheckin,
+         renderFornPontoLider, liderAprovarCheckin,
+         abrirCheckin, abrirCheckinObra, _toggleCheckinObraRow,
+         saveCheckin as _saveCheckinCore } from './ponto.js';
 
-// Importações de Fornecedores/Equipes
-import { 
-    renderFornAdmin, toggleLiderSelect, openModalManualForn, 
-    editForn, saveManualForn, submitRegForn, 
-    deleteForn, populaSelectManualForn 
-} from './fornecedores.js';
+// ── Fornecedores ──────────────────────────────────────────────
+import { renderFornAdmin, toggleLiderSelect,
+         openModalManualForn, editForn, saveManualForn,
+         submitRegForn, deleteForn, populaSelectManualForn } from './fornecedores.js';
 
-// Importações de Clientes
-import { 
-    renderClientsList, openModalNovoCliente, editClient, 
-    saveNovoCliente, deleteClient, populaSelectClientes 
-} from './clientes.js';
+// ── Clientes ─────────────────────────────────────────────────
+import { renderClientsList, openModalNovoCliente, editClient,
+         saveNovoCliente, deleteClient, populaSelectClientes } from './clientes.js';
 
-// Importações de Gestores e Composições
-import { openModalGestores, renderListaGestores, saveNovoGestor, deleteGestor } from './gestores.js';
-import { 
-    renderComposicoesList, openModalComposicao, editComposicao, 
-    saveComposicao, deleteComposicao, populaSelectComposicoes, aplicarComposicao 
-} from './composicoes.js';
+// ── Gestores ──────────────────────────────────────────────────
+import { openModalGestores, renderListaGestores,
+         saveNovoGestor, deleteGestor } from './gestores.js';
 
-// Portais e Offline
+// ── Composições ───────────────────────────────────────────────
+import { renderComposicoesList, openModalComposicao, editComposicao,
+         saveComposicao, deleteComposicao,
+         populaSelectComposicoes, aplicarComposicao } from './composicoes.js';
+
+// ── Portais ───────────────────────────────────────────────────
 import { renderFornDash, renderFornChecklist, fornToggleStatus } from './portal-forn.js';
-import { renderMembroDash } from './portal-membro.js';
-import { renderClienteDash } from './portal-cliente.js';
+import { renderMembroDash }    from './portal-membro.js';
+import { renderClienteDash }   from './portal-cliente.js';
+
+// ── Offline ───────────────────────────────────────────────────
 import { salvarOffline, sincronizarDados, initOfflineListeners } from './offline.js';
 
-// OBJETO GLOBAL APP - O que o HTML enxerga
+// ═══════════════════════════════════════════════════════════════
+// Monta window.APP — objeto público consumido pelo HTML inline
+// ═══════════════════════════════════════════════════════════════
 window.APP = {
-    // UI e Geral
-    showToast, openModal, closeModal, showMasterSection,
-    
+    // UI / Modal
+    openModal,
+    closeModal,
+    showToast,
+
     // Obras
-    renderMasterObrasGrid, renderObraDetail, openObraDetail, 
-    saveNovaObra, duplicarObra, deleteObraCompleta,
-    updateTeamSelection, calcBudgetValidation,
+    openObraDetail,
+    duplicarObra,
+    deleteObraCompleta,
+    updateObraConfig,
+    saveNovaObra,
+
+    // Formulário de Tarefa
+    setTipoContratacao,
+    calcTotalTask,
+    calcPERT,
+    updateInicioStyle,
+    handleDepChange,
+    saveTaskToObra,
+    editTask,
+    resetTaskForm,
+    toggleTaskStatus,
+    deleteTask,
+    toggleAtencao,
+
+    // Módulos EAP
+    saveModuloObra,
+    editModuloObra,
+    cancelEditModulo,
+    deleteModuloObra,
+
+    // Compras
+    openModalNovaCompra,
+    saveNovaCompra,
+    aprovarCompra,
+    deleteCompra,
 
     // Medições
-    renderMedicoes, openModalNovaMedicao, calcMedicaoTotal,
-    saveMedicao, toggleStatusAdm, deleteMedicao,
-    openModalNovaDiaria, calcDiaria, saveDiaria, deleteDiaria,
+    openModalNovaMedicao,
+    calcMedicaoTotal,
+    saveMedicao,
+    toggleStatusAdm,
+    deleteMedicao,
 
-    // Curvas e Ponto
-    switchCurvaTab, renderCurvaS, renderCurvaABC, renderOrcamentoAnalitico,
-    renderMasterPonto, aprovarCheckin, deleteCheckin,
-    renderFornPontoLider, liderAprovarCheckin,
-    abrirCheckin, abrirCheckinObra, _toggleCheckinObraRow,
-    
-    // Lógica de Ponto Offline/Online
+    // Diárias
+    openModalNovaDiaria,
+    calcDiaria,
+    saveDiaria,
+    deleteDiaria,
+
+    // Curvas S / ABC / Orçamento
+    switchCurvaTab,
+    renderCurvaS,
+    renderCurvaABC,
+    renderOrcamentoAnalitico,
+
+    // Folha de Ponto — Master
+    renderMasterPonto,
+    aprovarCheckin,
+    deleteCheckin,
+
+    // Folha de Ponto — Líder / Membro
+    renderFornPontoLider,
+    liderAprovarCheckin,
+    switchFornTab,
+    abrirCheckin,
+    abrirCheckinObra,
+    _toggleCheckinObraRow,
+
+    // saveCheckin com wrapper offline
     saveCheckin: async function (dados, isSync = false) {
         if (!navigator.onLine && !isSync) {
             salvarOffline(dados);
@@ -90,45 +151,91 @@ window.APP = {
         return _saveCheckinCore(dados);
     },
 
-    // Clientes e Fornecedores
-    renderClientsList, openModalNovoCliente, editClient, saveNovoCliente, deleteClient, populaSelectClientes,
-    renderFornAdmin, openModalManualForn, editForn, saveManualForn, deleteForn, 
-    toggleLiderSelect, populaSelectManualForn, submitRegForn,
+    // Usado pelo offline.js na re-sincronização
+    _saveCheckinOnline: _saveCheckinCore,
 
-    // Gestores e Composições
-    openModalGestores, renderListaGestores, saveNovoGestor, deleteGestor,
-    renderComposicoesList, openModalComposicao, editComposicao, saveComposicao, 
-    deleteComposicao, populaSelectComposicoes, aplicarComposicao,
+    // Portal Fornecedor
+    renderFornDash,
+    renderFornChecklist,
+    fornToggleStatus,
 
-    // Portais
-    renderFornDash, renderFornChecklist, fornToggleStatus,
-    renderMembroDash, renderClienteDash
+    // Portal Membro
+    renderMembroDash,
+
+    // Portal Cliente
+    renderClienteDash,
+
+    // Clientes
+    openModalNovoCliente,
+    editClient,
+    saveNovoCliente,
+    deleteClient,
+
+    // Fornecedores / Equipes
+    openModalManualForn,
+    editForn,
+    saveManualForn,
+    submitRegForn,
+    deleteForn,
+    toggleLiderSelect,
+
+    // Gestores
+    openModalGestores,
+    saveNovoGestor,
+    deleteGestor,
+
+    // Composições
+    openModalComposicao,
+    editComposicao,
+    saveComposicao,
+    deleteComposicao,
+    aplicarComposicao,
 };
 
-// Funções que ficam soltas no Windows para botões simples
-window.toggleMobileMenu = toggleMobileMenu;
+// ── Expõe funções chamadas diretamente no HTML (onclick="...") ─
+window.toggleMobileMenu  = toggleMobileMenu;
 window.showMasterSection = showMasterSection;
-window.switchObraTab = switchObraTab;
-window.switchFornTab = switchFornTab;
+window.switchObraTab     = switchObraTab;
 
-// INICIALIZAÇÃO
-document.addEventListener('DOMContentLoaded', () => {
-    setupAuth();
-    initOfflineListeners();
-    
-    if (window.lucide) {
-        window.lucide.createIcons();
-    }
-});
+// ── Funções de render expostas para o auth.js via window.APP ──
+// (auth.js chama via window.APP para evitar dependências circulares)
+window.APP.renderMasterObrasGrid   = renderMasterObrasGrid;
+window.APP.renderObraDetail        = renderObraDetail;
+window.APP.renderFornAdmin         = renderFornAdmin;
+window.APP.renderClientsList       = renderClientsList;
+window.APP.renderFornDash          = renderFornDash;
+window.APP.renderMembroDash        = renderMembroDash;
+window.APP.renderClienteDash       = renderClienteDash;
+window.APP.populaSelectClientes    = populaSelectClientes;
+window.APP.populaSelectManualForn  = populaSelectManualForn;
+window.APP.populaSelectComposicoes = populaSelectComposicoes;
+window.APP.renderComposicoesList   = renderComposicoesList;
+window.APP.renderListaGestores     = renderListaGestores;
 
-// SERVICE WORKER (PWA / Offline)
+// ── Inicia autenticação Firebase + watchers Firestore ─────────
+setupAuth();
+
+// ── Offline listeners ─────────────────────────────────────────
+initOfflineListeners();
+
+// ── Service Worker ────────────────────────────────────────────
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         navigator.serviceWorker.register('/sw.js')
             .then(reg => {
-                console.log('Arcco Hub: Modo Offline Ativado');
-                sconizarDados();
+                console.log('Sistema Offline Pronto');
+                reg.onupdatefound = () => {
+                    const w = reg.installing;
+                    w.onstatechange = () => {
+                        if (w.state === 'installed' && navigator.serviceWorker.controller) {
+                            if (confirm('Nova atualização disponível! Deseja carregar agora?')) {
+                                window.location.reload();
+                            }
+                        }
+                    };
+                };
+                sincronizarDados();
             })
-            .catch(err => console.log('Erro Service Worker:', err));
+            .catch(err => console.log('Erro no Service Worker', err));
     });
 }
