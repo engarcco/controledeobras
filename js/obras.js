@@ -393,19 +393,9 @@ export function renderCronogramaList(o, mods, tasks, phases){
 export function renderTaskRow(t, allTasks, o){
     const isBlocked  = t.dep?.some(dId => { const dt=allTasks.find(x=>x.id===dId); return dt&&dt.status!==2; });
     const isEditing  = t.id===STATE.editingTaskId;
-    const pertHtml   = getPertHtml(t);
-
-    // ============================================================
-    // CORREÇÃO 4: Alerta de custo de diárias vs. MO previsto
-    // Calcula quanto custaria a equipe no período e compara com MO
-    // ============================================================
+    // PERT já está dentro de _datasDestaque — não chama getPertHtml para não duplicar
     const alertaDiaria = _alertaCustoDiaria(t);
-
-    // ============================================================
-    // CORREÇÃO 5: Mostra as 3 datas em destaque na linha
-    // Início, Fim e PERT bem visíveis
-    // ============================================================
-    const datasHtml = _datasDestaque(t);
+    const datasHtml    = _datasDestaque(t);
 
     return `
     <div class="p-4 flex flex-col md:flex-row justify-between items-center gap-4 hover:bg-gray-50 transition-colors ${isEditing?'editing-row':''} ${isBlocked?'alert-blocked':''}">
@@ -429,7 +419,6 @@ export function renderTaskRow(t, allTasks, o){
                     <span class="text-[9px] font-bold text-arcco-black uppercase bg-gray-200 px-2 py-0.5 rounded">${t.forn}</span>
                     <!-- Subordinados da equipe selecionada -->
                     ${(t.membros||[]).map(m => `<span class="text-[8px] font-bold text-gray-600 uppercase bg-gray-100 border border-gray-200 px-1.5 py-0.5 rounded">${m}</span>`).join('')}
-                    ${pertHtml}
                     ${isBlocked?`<span class="text-[9px] font-bold text-arcco-red uppercase bg-red-100 px-2 py-0.5 rounded flex items-center gap-1"><i data-lucide="lock" class="w-3 h-3"></i> TRAVADO</span>`:''}
                     ${t.status===2&&t.concluidoPor?`<span class="text-[9px] font-bold text-green-700 uppercase bg-green-100 px-2 py-0.5 rounded border border-green-200"><i data-lucide="check" class="inline w-3 h-3"></i> ${t.concluidoPor}</span>`:''}
                 </div>
@@ -564,15 +553,65 @@ export function getPertHtml(t){
 // Com toggle opcional para detalhar MO/MAT/EQ/OUTROS
 // ============================================================
 
-// Alterna mostrar/ocultar o painel de detalhamento de custos
+// ============================================================
+// CORREÇÃO 2 — Toggle de detalhamento
+// Quando LIGADO: trava o campo "Custo Total" e soma MO+MAT+EQ+OUTROS
+// Quando DESLIGADO: libera o campo para digitação livre
+// ============================================================
 export const toggleDetalhamento = () => {
-    const painel = document.getElementById('campos-detalhe-custos');
-    const btn    = document.getElementById('btn-toggle-detalhe');
-    if(!painel) return;
-    const aberto = !painel.classList.contains('hidden');
+    const painel   = document.getElementById('campos-detalhe-custos');
+    const btn      = document.getElementById('btn-toggle-detalhe');
+    const custoEl  = document.getElementById('task-custo-total');
+    if(!painel || !custoEl) return;
+
+    const abrindo = painel.classList.contains('hidden');
     painel.classList.toggle('hidden');
-    if(btn) btn.innerText = aberto ? '▶ Detalhar Custos (MO, MAT, EQ, Outros)' : '▼ Ocultar Detalhamento';
+
+    if(abrindo){
+        // LIGANDO o detalhamento: trava o Custo Total
+        custoEl.readOnly = true;
+        custoEl.classList.add('bg-gray-100','text-gray-400','cursor-not-allowed');
+        custoEl.classList.remove('bg-white');
+        custoEl.title = 'Calculado automaticamente pela soma dos campos abaixo';
+        if(btn){
+            btn.innerHTML = '<i data-lucide="minus-circle" class="w-3 h-3 inline mr-1"></i> Ocultar detalhamento (MO / MAT / EQ / Outros)';
+        }
+        // Adiciona evento oninput em cada campo de detalhe para atualizar a soma
+        ['task-mo','task-mat','task-eq','task-ou'].forEach(id => {
+            const el = document.getElementById(id);
+            if(el) el.oninput = _somarDetalheNoCusto;
+        });
+        // Soma imediata ao abrir (caso já tenha valores)
+        _somarDetalheNoCusto();
+    } else {
+        // DESLIGANDO o detalhamento: libera o Custo Total
+        custoEl.readOnly = false;
+        custoEl.classList.remove('bg-gray-100','text-gray-400','cursor-not-allowed');
+        custoEl.classList.add('bg-white');
+        custoEl.title = '';
+        if(btn){
+            btn.innerHTML = '<i data-lucide="plus-circle" class="w-3 h-3 inline mr-1"></i> Detalhar Custos: MO / Material / Equipamento / Outros';
+        }
+        // Remove o listener dos campos de detalhe
+        ['task-mo','task-mat','task-eq','task-ou'].forEach(id => {
+            const el = document.getElementById(id);
+            if(el) el.oninput = null;
+        });
+    }
+    lucide.createIcons();
 };
+
+// Soma MO + MAT + EQ + OUTROS e coloca no Custo Total (quando detalhamento ligado)
+function _somarDetalheNoCusto(){
+    const mo  = parseFloat(document.getElementById('task-mo')?.value)  || 0;
+    const mat = parseFloat(document.getElementById('task-mat')?.value) || 0;
+    const eq  = parseFloat(document.getElementById('task-eq')?.value)  || 0;
+    const ou  = parseFloat(document.getElementById('task-ou')?.value)  || 0;
+    const custoEl = document.getElementById('task-custo-total');
+    if(custoEl) custoEl.value = (mo + mat + eq + ou).toFixed(2);
+    // Recalcula preço de venda com o novo custo
+    calcTotalTask();
+}
 
 // Calcula o Preço de Venda = Custo Total × (1 + BDI/100)
 // e atualiza os campos automaticamente
@@ -918,12 +957,32 @@ export const editTask = (id) => {
     if(eqEl)  eqEl.value  = t.valor_eq  || '';
     if(ouEl)  ouEl.value  = t.valor_ou  || '';
 
-    // Se algum detalhe foi preenchido, abre o painel de detalhamento
-    if((t.valor_mo || t.valor_mat || t.valor_eq || t.valor_ou)){
-        const painel = document.getElementById('campos-detalhe-custos');
-        const btn    = document.getElementById('btn-toggle-detalhe');
+    // Se algum detalhe foi preenchido, abre o painel de detalhamento E trava o custo total
+    if(t.valor_mo || t.valor_mat || t.valor_eq || t.valor_ou){
+        const painel  = document.getElementById('campos-detalhe-custos');
+        const btn     = document.getElementById('btn-toggle-detalhe');
+        const custoEl = document.getElementById('task-custo-total');
         if(painel) painel.classList.remove('hidden');
-        if(btn)    btn.innerText = '▼ Ocultar Detalhamento';
+        if(btn) btn.innerHTML = '<i data-lucide="minus-circle" class="w-3 h-3 inline mr-1"></i> Ocultar detalhamento (MO / MAT / EQ / Outros)';
+        // Trava o campo custo total — ele é calculado pela soma dos detalhes
+        if(custoEl){
+            custoEl.readOnly = true;
+            custoEl.classList.add('bg-gray-100','text-gray-400','cursor-not-allowed');
+            custoEl.classList.remove('bg-white');
+            custoEl.title = 'Calculado automaticamente pela soma dos campos abaixo';
+        }
+        // Liga os eventos de soma nos campos de detalhe
+        ['task-mo','task-mat','task-eq','task-ou'].forEach(id => {
+            const el = document.getElementById(id);
+            if(el) el.oninput = () => {
+                const mo  = parseFloat(document.getElementById('task-mo')?.value)  || 0;
+                const mat = parseFloat(document.getElementById('task-mat')?.value) || 0;
+                const eq  = parseFloat(document.getElementById('task-eq')?.value)  || 0;
+                const ou  = parseFloat(document.getElementById('task-ou')?.value)  || 0;
+                if(custoEl) custoEl.value = (mo+mat+eq+ou).toFixed(2);
+                calcTotalTask();
+            };
+        });
     }
 
     calcTotalTask();
@@ -971,7 +1030,27 @@ export const editTask = (id) => {
     btn.classList.remove('bg-arcco-lime','text-arcco-black');
     document.getElementById('btn-cancel-edit').classList.remove('hidden');
 
+    // renderObraDetail reescreve o select de fornecedor — por isso
+    // guardamos o valor antes e restauramos logo depois do render
+    const fornSalvo     = t.forn;
+    const membrosSalvos = t.membros_ids || [];
+
     renderObraDetail(STATE.currentObraId);
+
+    // Restaura o líder no select (que foi recriado pelo renderObraDetail)
+    const fSel = document.getElementById('task-fornecedor');
+    if(fSel) fSel.value = fornSalvo;
+
+    // Recarrega os subordinados e remarca os checkboxes
+    onChangeFornecedor();
+    setTimeout(() => {
+        membrosSalvos.forEach(mid => {
+            const cb = document.getElementById(`membro-check-${mid}`);
+            if(cb) cb.checked = true;
+        });
+        _atualizarAlertaDiariaForm();
+    }, 60);
+
     document.getElementById('task-modulo').scrollIntoView({behavior:'smooth', block:'center'});
 };
 
@@ -990,11 +1069,23 @@ export const resetTaskForm = () => {
     const vendaEl = document.getElementById('task-valor-venda-display');
     if(vendaEl) vendaEl.innerText = fmtBRL(0);
 
-    // Fecha o painel de detalhamento
-    const painel = document.getElementById('campos-detalhe-custos');
-    const btnDet = document.getElementById('btn-toggle-detalhe');
+    // Fecha o painel de detalhamento E libera o campo custo total
+    const painel   = document.getElementById('campos-detalhe-custos');
+    const btnDet   = document.getElementById('btn-toggle-detalhe');
+    const custoEl  = document.getElementById('task-custo-total');
     if(painel) painel.classList.add('hidden');
-    if(btnDet) btnDet.innerText = '▶ Detalhar Custos (MO, MAT, EQ, Outros)';
+    if(btnDet) btnDet.innerHTML = '<i data-lucide="plus-circle" class="w-3 h-3 inline mr-1"></i> Detalhar Custos: MO / Material / Equipamento / Outros';
+    if(custoEl){
+        custoEl.readOnly = false;
+        custoEl.classList.remove('bg-gray-100','text-gray-400','cursor-not-allowed');
+        custoEl.classList.add('bg-white');
+        custoEl.title = '';
+    }
+    // Remove os listeners dos campos de detalhe
+    ['task-mo','task-mat','task-eq','task-ou'].forEach(id => {
+        const el = document.getElementById(id);
+        if(el) el.oninput = null;
+    });
 
     document.getElementById('task-fornecedor').value = '';
 
