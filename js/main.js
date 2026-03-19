@@ -1,13 +1,10 @@
 // ============================================================
 // main.js — Ponto de entrada do ARCCO HUB
 // Importa todos os módulos e monta o objeto global window.APP
-//
-// COMO USAR: substitua o <script type="module"> inline do HTML por:
-//   <script type="module" src="js/main.js"></script>
 // ============================================================
 
-// ── Config / State / Helpers (Firebase já iniciado aqui) ─────
-import { STATE }    from './config.js';
+// ── Config / State / Helpers ─────────────────────────────────
+import { STATE } from './config.js';
 
 // ── UI ────────────────────────────────────────────────────────
 import { showToast, openModal, closeModal,
@@ -18,9 +15,15 @@ import { showToast, openModal, closeModal,
 import { setupAuth } from './auth.js';
 
 // ── Obras / Cronograma ────────────────────────────────────────
-import { renderMasterObrasGrid, openObraDetail, duplicarObra,
+import { renderMasterObrasGrid, openObraDetail,
+         // CORREÇÃO 1: novas funções de duplicar com modal
+         abrirModalDuplicar, confirmarDuplicar, duplicarObra,
          deleteObraCompleta, renderObraDetail,
-         setTipoContratacao, calcTotalTask, calcPERT,
+         // CORREÇÃO 2: novo formulário simplificado
+         calcTotalTask, toggleDetalhamento,
+         // CORREÇÃO 3: carregamento de subordinados
+         onChangeFornecedor, onChangeMembros,
+         setTipoContratacao, calcPERT,
          updateInicioStyle, handleDepChange,
          saveTaskToObra, editTask, resetTaskForm,
          toggleTaskStatus, deleteTask, toggleAtencao,
@@ -80,14 +83,24 @@ window.APP = {
 
     // Obras
     openObraDetail,
-    duplicarObra,
+    // CORREÇÃO 1: duplicar agora usa modal de edição
+    abrirModalDuplicar,
+    confirmarDuplicar,
+    duplicarObra: abrirModalDuplicar, // alias retrocompatível
     deleteObraCompleta,
     updateObraConfig,
     saveNovaObra,
 
-    // Formulário de Tarefa
-    setTipoContratacao,
+    // CORREÇÃO 2: Formulário simplificado
     calcTotalTask,
+    toggleDetalhamento,
+
+    // CORREÇÃO 3: Subordinados por checkbox
+    onChangeFornecedor,
+    onChangeMembros,
+
+    // Formulário de Tarefa (mantidos por compatibilidade)
+    setTipoContratacao,
     calcPERT,
     updateInicioStyle,
     handleDepChange,
@@ -198,7 +211,6 @@ window.showMasterSection = showMasterSection;
 window.switchObraTab     = switchObraTab;
 
 // ── Funções de render expostas para o auth.js via window.APP ──
-// (auth.js chama via window.APP para evitar dependências circulares)
 window.APP.renderMasterObrasGrid   = renderMasterObrasGrid;
 window.APP.renderObraDetail        = renderObraDetail;
 window.APP.renderFornAdmin         = renderFornAdmin;
