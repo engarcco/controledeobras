@@ -4,6 +4,7 @@
 
 export const showToast = (msg) => {
     const t = document.getElementById('toast');
+    if(!t) return;
     document.getElementById('toast-text').innerText = msg;
     t.classList.remove('translate-x-[150%]');
     setTimeout(() => t.classList.add('translate-x-[150%]'), 3000);
@@ -27,19 +28,19 @@ export const toggleMobileMenu = () => {
     if(!menu) return;
     const isOpen = !menu.classList.contains('hidden');
     menu.classList.toggle('hidden');
-    btn.innerHTML = isOpen ? '<i data-lucide="menu" class="w-6 h-6"></i>' : '<i data-lucide="x" class="w-6 h-6"></i>';
+    btn.innerHTML = isOpen 
+        ? '<i data-lucide="menu" class="w-6 h-6"></i>' 
+        : '<i data-lucide="x" class="w-6 h-6"></i>';
     lucide.createIcons();
 };
 
 export const showMasterSection = (sec) => {
-    // Adicionado 'orcamentos' na lista
     ['dash','obra-detail','fornecedores','clientes','composicoes', 'orcamentos'].forEach(s => {
         document.getElementById(`master-section-${s}`)?.classList.add('hidden');
     });
 
     document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active','border-arcco-lime','text-white'));
     
-    // Mapeamento atualizado para incluir Orçamentos
     const map = {dash:'Obras', orcamentos:'Orçamentos', composicoes:'Composições', fornecedores:'Equipes', clientes:'Clientes'};
     const lbl = map[sec];
     
@@ -51,16 +52,30 @@ export const showMasterSection = (sec) => {
 
 export const switchObraTab = (tab) => {
     ['cronograma','curvas','medicoes','ponto','compras'].forEach(t => {
-        document.getElementById(`obra-tab-${t}`)?.classList.add('hidden');
+        const el = document.getElementById(`obra-tab-${t}`);
+        if(el) el.classList.add('hidden');
     });
     document.querySelectorAll('.obra-tab-btn').forEach(b => {
         b.classList.remove('active-tab','border-arcco-lime','text-arcco-black');
     });
-    document.getElementById(`obra-tab-${tab}`)?.classList.remove('hidden');
+    const target = document.getElementById(`obra-tab-${tab}`);
+    if(target) target.classList.remove('hidden');
+    
+    const btn = Array.from(document.querySelectorAll('.obra-tab-btn')).find(b => b.getAttribute('onclick')?.includes(`'${tab}'`));
+    if(btn) btn.classList.add('active-tab','border-arcco-lime','text-arcco-black');
+    
     lucide.createIcons();
 };
 
-// Exportando para o escopo global para o index.html encontrar
+// ESSENCIAL: Função que estava faltando e causou o erro
+export const pontoStatusBadge = (ci) => {
+    if(ci.statusMaster==='aprovado')
+        return `<span class="text-[8px] font-bold uppercase px-2 py-0.5 rounded bg-green-100 text-green-700 border border-green-200">Aprovado</span>`;
+    if(ci.statusMaster==='recusado')
+        return `<span class="text-[8px] font-bold uppercase px-2 py-0.5 rounded bg-red-100 text-red-700 border border-red-200">Recusado</span>`;
+    return `<span class="text-[8px] font-bold uppercase px-2 py-0.5 rounded bg-yellow-100 text-yellow-700 border border-yellow-200">Pendente</span>`;
+};
+
 window.toggleMobileMenu = toggleMobileMenu;
 window.showMasterSection = showMasterSection;
 window.switchObraTab = switchObraTab;
