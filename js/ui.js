@@ -55,7 +55,6 @@ export const showMasterSection = (sec) => {
     
     if (typeof lucide !== 'undefined') lucide.createIcons();
 };
-};
 
 export const switchObraTab = (tab) => {
     ['cronograma','curvas','medicoes','ponto','compras'].forEach(t => {
