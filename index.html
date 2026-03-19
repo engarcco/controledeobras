@@ -11,43 +11,25 @@
     <meta name="mobile-web-app-capable" content="yes"> 
     <meta name="apple-mobile-web-app-capable" content="yes"> 
     <meta name="theme-color" content="#111111">
-
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
             theme: {
                 extend: {
-                    fontFamily: {
-                        sans: ['"Open Sans"', 'sans-serif'],
-                        heading: ['"Montserrat"', 'sans-serif'],
-                    },
-                    colors: {
-                        arcco: {
-                            black: '#111111',
-                            white: '#ffffff',
-                            concrete: '#f4f4f5',
-                            lime: '#ccff00',
-                            red: '#ef4444',
-                            orange: '#f97316'
-                        }
-                    }
+                    fontFamily: { sans: ['"Open Sans"', 'sans-serif'], heading: ['"Montserrat"', 'sans-serif'] },
+                    colors: { arcco: { black: '#111111', white: '#ffffff', concrete: '#f4f4f5', lime: '#ccff00', red: '#ef4444', orange: '#f97316' } }
                 }
             }
         }
     </script>
-
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;800;900&family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
-
     <style>
         body { background-color: #f4f4f5; color: #111111; }
         .font-montserrat { font-family: 'Montserrat', sans-serif; }
         .font-black-italic { font-weight: 900; font-style: italic; }
-        input, select, textarea {
-            width: 100%; padding: 0.85rem 1rem; border: 1px solid #d4d4d8; border-radius: 0.5rem;
-            background-color: #ffffff; outline: none; transition: all 0.2s; font-size: 0.875rem;
-        }
+        input, select, textarea { width: 100%; padding: 0.85rem 1rem; border: 1px solid #d4d4d8; border-radius: 0.5rem; background-color: #ffffff; outline: none; transition: all 0.2s; font-size: 0.875rem; }
         input:focus, select:focus { border-color: #111111; border-width: 2px; }
         .nav-btn.active { color: #ffffff; border-bottom-color: #ccff00; }
         .safe-area-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
@@ -60,107 +42,141 @@
     <p class="font-montserrat text-xs tracking-widest uppercase font-bold text-gray-500">Iniciando Arcco Hub...</p>
 </div>
 
-<header class="bg-arcco-black text-white sticky top-0 z-50 shadow-md">
-    <div class="max-w-7xl mx-auto px-4 md:px-6 h-16 flex justify-between items-center">
-        <div class="flex items-center gap-4 md:gap-8">
-            <h2 class="font-montserrat font-black-italic text-2xl tracking-tighter">ARCCO<span class="text-arcco-lime">.</span></h2>
-            <nav class="hidden md:flex gap-2 h-full items-center pt-1">
-                <button onclick="showMasterSection('dash')" class="nav-btn active px-4 py-2 text-xs font-bold uppercase tracking-wider text-gray-400 hover:text-arcco-lime transition-colors border-b-2 border-transparent">Obras</button>
-                <button onclick="showMasterSection('orcamentos')" class="nav-btn px-4 py-2 text-xs font-bold uppercase tracking-wider text-gray-400 hover:text-arcco-lime transition-colors border-b-2 border-transparent">Orçamentos</button>
-                <button onclick="showMasterSection('composicoes')" class="nav-btn px-4 py-2 text-xs font-bold uppercase tracking-wider text-gray-400 hover:text-arcco-lime transition-colors border-b-2 border-transparent">Composições</button>
-                <button onclick="showMasterSection('fornecedores')" class="nav-btn px-4 py-2 text-xs font-bold uppercase tracking-wider text-gray-400 hover:text-arcco-lime transition-colors border-b-2 border-transparent">Equipes</button>
-                <button onclick="showMasterSection('clientes')" class="nav-btn px-4 py-2 text-xs font-bold uppercase tracking-wider text-gray-400 hover:text-arcco-lime transition-colors border-b-2 border-transparent">Clientes</button>
-            </nav>
-        </div>
-        <div class="flex items-center gap-3">
-            <button id="mobile-menu-btn" onclick="toggleMobileMenu()" class="md:hidden text-gray-400 p-1"><i data-lucide="menu"></i></button>
-        </div>
+<div id="toast" class="fixed top-4 right-4 z-[9999] translate-x-[150%] transition-transform duration-300 bg-arcco-black text-white px-6 py-4 rounded shadow-xl border-l-4 border-arcco-lime flex items-center gap-3">
+    <i data-lucide="info" class="text-arcco-lime w-4 h-4 shrink-0"></i>
+    <p id="toast-text" class="text-sm font-bold uppercase tracking-wide"></p>
+</div>
+
+<section id="view-login" class="min-h-screen flex items-center justify-center p-6 bg-gray-100 hidden">
+    <div class="w-full max-w-sm bg-white p-10 rounded-xl shadow-xl border border-gray-200 text-center">
+        <h1 class="font-montserrat font-black-italic text-5xl text-arcco-black tracking-tighter mb-10">ARCCO<span class="text-arcco-lime">.</span></h1>
+        <form id="login-form" class="space-y-5">
+            <input type="text" id="user-id" placeholder="Usuário" required>
+            <input type="password" id="pass-id" placeholder="Senha" required>
+            <button type="submit" class="w-full bg-arcco-lime text-arcco-black font-bold py-4 rounded uppercase">Entrar</button>
+        </form>
     </div>
-</header>
+</section>
 
-<main class="flex-1 max-w-7xl mx-auto w-full p-4 md:p-6 space-y-8">
-
-    <div id="master-section-orcamentos" class="hidden space-y-6">
-        <div class="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 border-b border-gray-300 pb-4">
-            <div>
-                <h3 class="font-montserrat font-bold text-2xl uppercase text-arcco-black">Calculadora de Orçamentos</h3>
-                <p class="text-sm text-gray-500 font-semibold mt-1">Valide custos e equipes antes de transformar em obra ativa</p>
+<section id="view-master" class="hidden min-h-screen flex flex-col">
+    <header class="bg-arcco-black text-white sticky top-0 z-50 shadow-md">
+        <div class="max-w-7xl mx-auto px-4 md:px-6 h-16 flex justify-between items-center">
+            <div class="flex items-center gap-4 md:gap-8">
+                <h2 class="font-montserrat font-black-italic text-2xl tracking-tighter">ARCCO<span class="text-arcco-lime">.</span></h2>
+                <nav class="hidden md:flex gap-2 h-full items-center">
+                    <button onclick="showMasterSection('dash')" class="nav-btn px-4 py-2 text-xs font-bold uppercase text-gray-400 hover:text-white">Obras</button>
+                    <button onclick="showMasterSection('orcamentos')" class="nav-btn px-4 py-2 text-xs font-bold uppercase text-gray-400 hover:text-white">Orçamentos</button>
+                    <button onclick="showMasterSection('fornecedores')" class="nav-btn px-4 py-2 text-xs font-bold uppercase text-gray-400 hover:text-white">Equipes</button>
+                    <button onclick="showMasterSection('clientes')" class="nav-btn px-4 py-2 text-xs font-bold uppercase text-gray-400 hover:text-white">Clientes</button>
+                </nav>
             </div>
-            <button onclick="APP.openModal('modal-nova-obra')" class="bg-arcco-black text-white font-montserrat font-bold text-xs uppercase px-6 py-3 rounded shadow flex items-center gap-2">
-                <i data-lucide="plus" class="w-4 h-4 text-arcco-lime"></i> Criar Orçamento
+            <button onclick="location.reload()" class="text-gray-400 hover:text-white"><i data-lucide="power"></i></button>
+        </div>
+    </header>
+
+    <main class="flex-1 max-w-7xl mx-auto w-full p-4 md:p-6 space-y-8">
+        <div id="master-section-orcamentos" class="hidden space-y-6">
+            <div class="flex justify-between items-end border-b border-gray-300 pb-4">
+                <h3 class="font-montserrat font-bold text-2xl uppercase">Orçamentos & Propostas</h3>
+                <button onclick="APP.openModal('modal-nova-obra')" class="bg-arcco-black text-white px-6 py-3 rounded text-xs font-bold uppercase">+ Novo Orçamento</button>
+            </div>
+            <div id="master-orcamentos-grid" class="grid grid-cols-1 md:grid-cols-3 gap-6"></div>
+        </div>
+
+        <div id="master-section-dash" class="space-y-6">
+            <div class="flex justify-between items-end border-b border-gray-300 pb-4">
+                <h3 class="font-montserrat font-bold text-2xl uppercase">Portfólio de Obras</h3>
+                <button onclick="APP.openModal('modal-nova-obra')" class="bg-arcco-black text-white px-6 py-3 rounded text-xs font-bold uppercase">+ Iniciar Obra</button>
+            </div>
+            <div id="master-obras-grid" class="grid grid-cols-1 md:grid-cols-3 gap-6"></div>
+        </div>
+
+        <div id="master-section-obra-detail" class="hidden space-y-6">
+            <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                <h3 id="det-obra-nome" class="font-montserrat font-black-italic text-3xl text-arcco-black tracking-tighter mb-4">NOME DA OBRA</h3>
+                
+                <div class="bg-gray-50 p-6 rounded-xl border border-gray-200 space-y-5">
+                    <h4 class="text-xs font-bold uppercase text-gray-400">Adicionar/Editar Serviço</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
+                        <div class="md:col-span-8">
+                            <label class="text-[10px] font-bold text-gray-500 uppercase">Descrição</label>
+                            <input type="text" id="task-nome" class="font-bold">
+                        </div>
+                        <div class="md:col-span-4">
+                            <label class="text-[10px] font-bold text-gray-500 uppercase">Prazo (Dias)</label>
+                            <input type="number" id="task-prazo" oninput="APP.calcBudgetValidation()">
+                        </div>
+                        <div class="md:col-span-4">
+                            <label class="text-[10px] font-bold text-gray-500 uppercase">Custo Total (MaisControle)</label>
+                            <input type="number" id="task-custo-total" oninput="APP.calcBudgetValidation()" placeholder="R$ 0,00">
+                        </div>
+                        <div class="md:col-span-4">
+                            <label class="text-[10px] font-bold text-gray-500 uppercase">BDI (%)</label>
+                            <input type="number" id="task-bdi" value="20" oninput="APP.calcBudgetValidation()">
+                        </div>
+                        <div class="md:col-span-4">
+                            <label class="text-[10px] font-bold text-gray-500 uppercase">Preço Venda</label>
+                            <div id="task-venda-preview" class="p-3 bg-arcco-lime/20 border border-arcco-lime rounded font-bold text-sm">R$ 0,00</div>
+                        </div>
+                        <div class="md:col-span-6">
+                            <label class="text-[10px] font-bold text-gray-500 uppercase">Líder de Equipe</label>
+                            <select id="task-fornecedor" onchange="APP.updateTeamSelection()"></select>
+                        </div>
+                        <div class="md:col-span-3">
+                            <label class="text-[10px] font-bold text-gray-500 uppercase">Início</label>
+                            <input type="date" id="task-inicio">
+                        </div>
+                        <div class="md:col-span-3">
+                            <label class="text-[10px] font-bold text-gray-500 uppercase">Fim</label>
+                            <input type="date" id="task-fim">
+                        </div>
+                    </div>
+
+                    <div id="team-validation-area" class="hidden p-4 bg-white border border-gray-200 rounded-lg">
+                        <h5 class="text-[10px] font-bold text-gray-400 uppercase mb-3">Composição da Equipe</h5>
+                        <div id="team-members-list" class="grid grid-cols-2 gap-2 mb-3"></div>
+                        <div id="budget-alert" class="hidden p-3 rounded text-[10px] font-bold uppercase"></div>
+                    </div>
+
+                    <div class="flex justify-end pt-2">
+                        <button onclick="APP.saveTaskToObra()" class="bg-arcco-black text-white px-8 py-3 rounded font-bold text-xs uppercase">Salvar no Cronograma</button>
+                    </div>
+                </div>
+            </div>
+            <div id="det-cronograma-list" class="space-y-4"></div>
+        </div>
+
+        </main>
+
+    <nav class="md:hidden fixed bottom-0 left-0 right-0 bg-arcco-black border-t border-gray-800 safe-area-bottom">
+        <div class="flex h-16">
+            <button onclick="showMasterSection('dash')" class="flex-1 flex flex-col items-center justify-center text-gray-500 hover:text-arcco-lime">
+                <i data-lucide="hard-hat" class="w-5 h-5"></i><span class="text-[9px] font-bold uppercase mt-1">Obras</span>
+            </button>
+            <button onclick="showMasterSection('orcamentos')" class="flex-1 flex flex-col items-center justify-center text-gray-500 hover:text-arcco-lime">
+                <i data-lucide="calculator" class="w-5 h-5"></i><span class="text-[9px] font-bold uppercase mt-1">Orçamentos</span>
             </button>
         </div>
-        <div id="master-orcamentos-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
-    </div>
+    </nav>
+</section>
 
-    <div id="master-section-dash" class="space-y-6">
-        <div id="master-obras-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
-    </div>
-
-    <div id="master-section-obra-detail" class="hidden space-y-6">
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <div class="bg-arcco-black p-4 flex justify-between items-center">
-                <h4 class="font-montserrat font-bold text-sm uppercase text-white">Configurar Serviço</h4>
-            </div>
-            <div class="p-6 space-y-5">
-                <div class="grid grid-cols-1 md:grid-cols-12 gap-5 items-end">
-                    <div class="md:col-span-8">
-                        <label class="text-[10px] font-bold text-gray-400 uppercase">Descrição do Serviço</label>
-                        <input type="text" id="task-nome" class="font-bold">
-                    </div>
-                    <div class="md:col-span-4">
-                        <label class="text-[10px] font-bold text-gray-400 uppercase">Prazo PERT (Dias)</label>
-                        <input type="number" id="task-prazo" oninput="APP.calcBudgetValidation()" class="font-bold text-lg text-blue-700">
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-5 bg-gray-50 p-4 rounded-lg border border-gray-200">
-                    <div>
-                        <label class="text-[10px] font-bold text-gray-500 uppercase">Custo Total Orçado</label>
-                        <input type="number" id="task-custo-total" oninput="APP.calcBudgetValidation()" placeholder="R$ 0,00">
-                    </div>
-                    <div>
-                        <label class="text-[10px] font-bold text-gray-500 uppercase">BDI / Margem (%)</label>
-                        <input type="number" id="task-bdi" value="20" oninput="APP.calcBudgetValidation()">
-                    </div>
-                    <div>
-                        <label class="text-[10px] font-bold text-gray-500 uppercase">Preço de Venda Final</label>
-                        <div id="task-venda-preview" class="p-3 bg-arcco-lime/20 border border-arcco-lime rounded font-bold text-arcco-black">R$ 0,00</div>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    <div>
-                        <label class="text-[10px] font-bold text-gray-400 uppercase">Líder da Equipe</label>
-                        <select id="task-fornecedor" onchange="APP.updateTeamSelection()"></select>
-                    </div>
-                    <div class="grid grid-cols-2 gap-2">
-                        <div>
-                            <label class="text-[10px] font-bold text-gray-400 uppercase">Início</label>
-                            <input type="date" id="task-inicio" class="text-xs">
-                        </div>
-                        <div>
-                            <label class="text-[10px] font-bold text-gray-400 uppercase">Fim</label>
-                            <input type="date" id="task-fim" class="text-xs">
-                        </div>
-                    </div>
-                </div>
-
-                <div id="team-validation-area" class="hidden p-4 bg-gray-100 rounded-xl border border-gray-200">
-                    <h5 class="text-[10px] font-bold text-gray-500 uppercase mb-3">Selecione os Membros e Valide o Custo</h5>
-                    <div id="team-members-list" class="grid grid-cols-2 md:grid-cols-3 gap-2 mb-4"></div>
-                    <div id="budget-alert" class="hidden p-3 rounded-lg border flex items-center gap-2 font-bold uppercase text-[10px]"></div>
-                </div>
-
-                <div class="flex justify-end gap-3 border-t pt-4">
-                    <button onclick="APP.saveTaskToObra()" class="bg-arcco-black text-white px-8 py-3 rounded font-montserrat font-bold text-xs uppercase shadow-lg">Salvar no Cronograma</button>
-                </div>
-            </div>
+<div id="modal-nova-obra" class="modal-overlay fixed inset-0 bg-black/70 hidden z-[500] items-center justify-center p-4">
+    <div class="bg-white rounded-xl w-full max-w-md p-8">
+        <div class="flex justify-between items-center mb-6">
+            <h4 class="font-bold uppercase text-sm">Novo Projeto</h4>
+            <button onclick="APP.closeModal()"><i data-lucide="x"></i></button>
         </div>
-
-        <div id="det-cronograma-list" class="space-y-6"></div>
+        <div class="space-y-4">
+            <input type="text" id="new-obra-nome" placeholder="Nome da Obra">
+            <select id="new-obra-cliente"></select>
+            <select id="new-obra-tipo">
+                <option value="OBRA">Obra Ativa</option>
+                <option value="ORÇAMENTO">Orçamento / Proposta</option>
+            </select>
+            <button onclick="APP.saveNovaObra()" class="w-full bg-arcco-lime text-arcco-black font-bold py-4 rounded uppercase">Criar Projeto</button>
+        </div>
     </div>
-</main>
+</div>
 
 <script type="module" src="js/main.js"></script>
 </body>
