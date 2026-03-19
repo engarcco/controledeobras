@@ -2,21 +2,24 @@ import { auth, db, col, STATE, onAuthStateChanged, signInAnonymously } from './c
 import { onSnapshot } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
 
 export function setupAuth() {
-    signInAnonymously(auth).catch(() => {});
+    // Tenta conectar ao Firebase
+    signInAnonymously(auth).catch(err => console.error("Erro Firebase:", err));
 
     onAuthStateChanged(auth, (user) => {
+        // Remove o loading assim que o Firebase responde
+        const loading = document.getElementById('loading');
+        if (loading) loading.classList.add('hidden');
+
         if (user) {
-            // Garante que o loading suma e a tela de login apareça
-            const loadingEl = document.getElementById('loading');
+            // Se já estiver logado ou conectado, mostra a tela de login
             const loginView = document.getElementById('view-login');
-            if(loadingEl) loadingEl.classList.add('hidden');
-            if(loginView) loginView.classList.remove('hidden');
+            if (loginView) loginView.classList.remove('hidden');
             _setupSync();
         }
     });
 
     const form = document.getElementById('login-form');
-    if(form) form.onsubmit = _handleLogin;
+    if (form) form.onsubmit = _handleLogin;
 }
 
 function _setupSync() {
@@ -24,7 +27,7 @@ function _setupSync() {
         onSnapshot(col(name), snap => {
             STATE[key] = snap.docs.map(d => ({ firebaseId: d.id, ...d.data() }));
             if (STATE.activeUser) cb?.();
-        });
+        }, (err) => console.warn(`Erro ao sincronizar ${name}:`, err));
 
     watch('obras', 'obras', _refreshViews);
     watch('fornecedores', 'forn', () => {
@@ -47,7 +50,7 @@ function _refreshViews() {
         window.APP?.renderMasterObrasGrid?.();
         if (STATE.currentObraId) window.APP?.renderObraDetail?.(STATE.currentObraId);
     }
-    if (typeof lucide !== 'undefined') lucide.createIcons();
+    if (window.lucide) window.lucide.createIcons();
 }
 
 function _handleLogin(e) {
@@ -55,6 +58,7 @@ function _handleLogin(e) {
     const u = document.getElementById('user-id').value.toLowerCase().trim();
     const p = document.getElementById('pass-id').value.trim();
 
+    // Seus dados de acesso direto
     const DEFAULT_GESTORES = [
         { nome: 'Andres Greco',  login: 'andresgreco',   senha: 'Arcco1452*' },
         { nome: 'Lucas Barbosa', login: 'lucas barbosa', senha: 'Arcco1452*' }
@@ -70,5 +74,10 @@ function _handleLogin(e) {
         _refreshViews();
         return;
     }
-    window.APP?.showToast?.('LOGIN OU SENHA INCORRETOS');
+    
+    if (window.APP?.showToast) {
+        window.APP.showToast('LOGIN OU SENHA INCORRETOS');
+    } else {
+        alert('Login ou senha incorretos');
+    }
 }
