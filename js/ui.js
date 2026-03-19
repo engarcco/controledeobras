@@ -35,8 +35,12 @@ export const toggleMobileMenu = () => {
 };
 
 export const showMasterSection = (sec) => {
-    ['dash','obra-detail','fornecedores','clientes','composicoes', 'orcamentos'].forEach(s => {
-        document.getElementById(`master-section-${s}`)?.classList.add('hidden');
+    // Lista de todas as seções possíveis
+    const sections = ['dash','obra-detail','fornecedores','clientes','composicoes', 'orcamentos'];
+    
+    sections.forEach(s => {
+        const el = document.getElementById(`master-section-${s}`);
+        if(el) el.classList.add('hidden');
     });
 
     document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active','border-arcco-lime','text-white'));
@@ -46,8 +50,11 @@ export const showMasterSection = (sec) => {
     
     Array.from(document.querySelectorAll('.nav-btn')).find(b=>b.innerText.trim()===lbl)?.classList.add('active','border-arcco-lime','text-white');
 
-    document.getElementById(`master-section-${sec}`)?.classList.remove('hidden');
-    lucide.createIcons();
+    const target = document.getElementById(`master-section-${sec}`);
+    if(target) target.classList.remove('hidden');
+    
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+};
 };
 
 export const switchObraTab = (tab) => {
