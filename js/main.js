@@ -18,6 +18,10 @@ import { setupAuth } from './auth.js';
 import { renderMasterObrasGrid, openObraDetail,
          // CORREÇÃO 1: novas funções de duplicar com modal
          abrirModalDuplicar, confirmarDuplicar, duplicarObra,
+         abrirModalEditarObra, salvarEdicaoObra,
+         finalizarObra, confirmarFinalizarObra,
+         renderObrasFinalizadasGrid, reativarObra,
+         renderHistoricoIntelligence,
          deleteObraCompleta, renderObraDetail,
          // CORREÇÃO 2: novo formulário simplificado
          calcTotalTask, toggleDetalhamento,
@@ -83,10 +87,17 @@ window.APP = {
 
     // Obras
     openObraDetail,
-    // CORREÇÃO 1: duplicar agora usa modal de edição
     abrirModalDuplicar,
     confirmarDuplicar,
-    duplicarObra: abrirModalDuplicar, // alias retrocompatível
+    duplicarObra: abrirModalDuplicar,
+    // Editar / Finalizar / Histórico
+    abrirModalEditarObra,
+    salvarEdicaoObra,
+    finalizarObra,
+    confirmarFinalizarObra,
+    renderObrasFinalizadasGrid,
+    reativarObra,
+    renderHistoricoIntelligence,
     deleteObraCompleta,
     updateObraConfig,
     saveNovaObra,
@@ -222,7 +233,9 @@ window.APP.populaSelectClientes    = populaSelectClientes;
 window.APP.populaSelectManualForn  = populaSelectManualForn;
 window.APP.populaSelectComposicoes = populaSelectComposicoes;
 window.APP.renderComposicoesList   = renderComposicoesList;
-window.APP.renderListaGestores     = renderListaGestores;
+window.APP.renderListaGestores          = renderListaGestores;
+window.APP.renderObrasFinalizadasGrid   = renderObrasFinalizadasGrid;
+window.APP.renderHistoricoIntelligence  = renderHistoricoIntelligence;
 
 // ── Inicia autenticação Firebase + watchers Firestore ─────────
 setupAuth();
