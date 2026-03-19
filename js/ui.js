@@ -35,25 +35,29 @@ export const toggleMobileMenu = () => {
 };
 
 export const showMasterSection = (sec) => {
-    // Lista de todas as seções possíveis
+    // Lista todas as seções para garantir que nada fique aberto por baixo
     const sections = ['dash','obra-detail','fornecedores','clientes','composicoes', 'orcamentos'];
     
     sections.forEach(s => {
         const el = document.getElementById(`master-section-${s}`);
-        if(el) el.classList.add('hidden');
+        if (el) el.classList.add('hidden');
     });
 
-    document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active','border-arcco-lime','text-white'));
+    // Remove destaque dos botões do menu
+    document.querySelectorAll('.nav-btn').forEach(btn => {
+        btn.classList.remove('active', 'border-arcco-lime', 'text-white');
+    });
     
-    const map = {dash:'Obras', orcamentos:'Orçamentos', composicoes:'Composições', fornecedores:'Equipes', clientes:'Clientes'};
-    const lbl = map[sec];
-    
-    Array.from(document.querySelectorAll('.nav-btn')).find(b=>b.innerText.trim()===lbl)?.classList.add('active','border-arcco-lime','text-white');
-
+    // Mostra a seção desejada
     const target = document.getElementById(`master-section-${sec}`);
-    if(target) target.classList.remove('hidden');
-    
-    if (typeof lucide !== 'undefined') lucide.createIcons();
+    if (target) {
+        target.classList.remove('hidden');
+    } else {
+        console.error(`A seção master-section-${sec} não foi encontrada no HTML.`);
+    }
+
+    // Recria os ícones (Lucide)
+    if (window.lucide) window.lucide.createIcons();
 };
 
 export const switchObraTab = (tab) => {
