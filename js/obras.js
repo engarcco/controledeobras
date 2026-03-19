@@ -1,13 +1,20 @@
 // ============================================================
 // obras.js — Obras, Tarefas, Módulos EAP e Cronograma
 // ============================================================
+// CORREÇÕES INCLUÍDAS NESTA VERSÃO:
+//   1. duplicarObra → Abre modal para editar nome e cliente antes de salvar
+//   2. Formulário de tarefa → Simplificado: Custo Total + BDI + Preço Venda
+//      com toggle opcional para detalhar MO/MAT/EQ/OUTROS
+//   3. Seleção de equipe → Ao selecionar Líder, carrega subordinados com checkbox
+//   4. Alerta de custo de diárias vs. MO previsto no período selecionado
+//   5. Datas Início/Fim/PERT maiores e visíveis; alerta de sobreposição de datas
+// ============================================================
 
-import { STATE, apiAdd, apiUpdate, apiDelete, today, parseDate, fmtBRL, fmtDate, todayISO, sortModulos, MOD_COLORS } from './config.js';
+import { STATE, apiAdd, apiUpdate, apiDelete, today, parseDate,
+         fmtBRL, fmtDate, todayISO, sortModulos, MOD_COLORS } from './config.js';
 import { showToast, showMasterSection, switchObraTab } from './ui.js';
-// renderMedicoes, renderMasterPonto, renderCurvas e switchCurvaTab
-// são chamadas via window.APP para evitar dependências circulares
 
-// ── Obras Grid ────────────────────────────────────────────────
+// ── Obras Grid (lista de projetos na tela principal) ──────────
 export function renderMasterObrasGrid(){
     const grid = document.getElementById('master-obras-grid');
     if(!STATE.obras.length){
@@ -101,7 +108,8 @@ export function renderMasterObrasGrid(){
             </div>
             <div class="border-t border-gray-100 bg-gray-50 p-3 flex gap-2 mt-auto">
                 <button onclick="APP.openObraDetail('${o.firebaseId}')" class="flex-1 bg-arcco-black text-white font-montserrat font-bold text-xs uppercase py-2.5 rounded hover:bg-gray-800 transition-colors shadow-sm">Abrir Gestão</button>
-                <button onclick="APP.duplicarObra('${o.firebaseId}')" class="w-9 h-9 rounded bg-white border border-gray-300 text-gray-400 hover:bg-blue-50 hover:text-blue-500 flex items-center justify-center" title="Duplicar"><i data-lucide="copy" class="w-4 h-4"></i></button>
+                <!-- CORREÇÃO 1: duplicar agora abre um modal para editar nome/cliente antes de salvar -->
+                <button onclick="APP.abrirModalDuplicar('${o.firebaseId}')" class="w-9 h-9 rounded bg-white border border-gray-300 text-gray-400 hover:bg-blue-50 hover:text-blue-500 flex items-center justify-center" title="Duplicar"><i data-lucide="copy" class="w-4 h-4"></i></button>
                 <button onclick="APP.deleteObraCompleta('${o.firebaseId}')" class="w-9 h-9 rounded bg-white border border-gray-300 text-gray-400 hover:bg-red-50 hover:text-arcco-red flex items-center justify-center" title="Excluir"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
             </div>
         </div>`;
@@ -109,6 +117,7 @@ export function renderMasterObrasGrid(){
 
     lucide.createIcons();
 
+    // Renderiza os mini-gráficos de rosca em cada card de obra
     setTimeout(() => {
         STATE.obras.forEach(o => {
             const tasks   = o.tasks||[];
@@ -146,17 +155,82 @@ export const openObraDetail = (fId) => {
     renderObraDetail(fId);
 };
 
-export const duplicarObra = async (id) => {
+// ============================================================
+// CORREÇÃO 1: Duplicar Obra
+// Antes: duplicava direto com o mesmo nome e cliente
+// Agora: abre um modal para o usuário editar nome e cliente
+// ============================================================
+
+// Guarda qual obra está sendo duplicada
+let _obraParaDuplicarId = null;
+
+// Abre o modal de confirmação/edição antes de duplicar
+export const abrirModalDuplicar = (id) => {
     const orig = STATE.obras.find(x => x.firebaseId===id);
     if(!orig) return;
-    if(!confirm(`Criar cópia de "${orig.nome}"?`)) return;
-    const idMap = {};
-    const base = Date.now();
-    const tasks = (orig.tasks||[]).map((t,i) => { const nid=`T-${base+i}`; idMap[t.id]=nid; return {...t,id:nid,status:0,concluidoPor:null}; });
-    tasks.forEach(t => { if(t.dep?.length) t.dep=t.dep.map(d=>idMap[d]||d); });
-    await apiAdd('obras',{nome:orig.nome+' (Cópia)',clienteId:orig.clienteId,tipo:orig.tipo,contrato:orig.contrato,taxa_adm:orig.taxa_adm||0,modulos:[...(orig.modulos||[])],tasks,compras:[],medicoes:[],diarias:[],timestamp:base});
-    showToast('OBRA DUPLICADA');
+    _obraParaDuplicarId = id;
+
+    // Preenche o modal com os dados originais para o usuário editar
+    document.getElementById('dup-obra-nome').value = orig.nome + ' (Cópia)';
+
+    // Popula o select de clientes no modal de duplicar
+    const sel = document.getElementById('dup-obra-cliente');
+    sel.innerHTML = '<option value="">(SELECIONE O CLIENTE)</option>' +
+        STATE.clients.map(c => `<option value="${c.id}" ${c.id===orig.clienteId?'selected':''}>${c.nome}</option>`).join('');
+
+    // Abre o modal
+    const modal = document.getElementById('modal-duplicar-obra');
+    if(modal){ modal.classList.remove('hidden'); modal.classList.add('flex'); }
 };
+
+// Executa a duplicação com o nome e cliente já editados pelo usuário
+export const confirmarDuplicar = async () => {
+    const id   = _obraParaDuplicarId;
+    const orig = STATE.obras.find(x => x.firebaseId===id);
+    if(!orig || !id) return;
+
+    const novoNome = document.getElementById('dup-obra-nome').value.trim();
+    const novoCli  = document.getElementById('dup-obra-cliente').value;
+
+    if(!novoNome) return showToast('Digite o nome da nova obra!');
+    if(!novoCli)  return showToast('Selecione o cliente!');
+
+    // Cria novos IDs para as tarefas copiadas para não conflitar com as originais
+    const idMap = {};
+    const base  = Date.now();
+    const tasks = (orig.tasks||[]).map((t,i) => {
+        const nid = `T-${base+i}`;
+        idMap[t.id] = nid;
+        // Status volta para 0 (pendente) na cópia
+        return {...t, id:nid, status:0, concluidoPor:null};
+    });
+
+    // Atualiza dependências para apontar para os novos IDs
+    tasks.forEach(t => {
+        if(t.dep?.length) t.dep = t.dep.map(d => idMap[d]||d);
+    });
+
+    await apiAdd('obras', {
+        nome:      novoNome,
+        clienteId: novoCli,
+        tipo:      orig.tipo,
+        contrato:  orig.contrato,
+        taxa_adm:  orig.taxa_adm||0,
+        modulos:   [...(orig.modulos||[])],
+        tasks,
+        compras: [], medicoes: [], diarias: [],
+        timestamp: base
+    });
+
+    // Fecha o modal e limpa o estado
+    const modal = document.getElementById('modal-duplicar-obra');
+    if(modal){ modal.classList.add('hidden'); modal.classList.remove('flex'); }
+    _obraParaDuplicarId = null;
+    showToast('OBRA DUPLICADA COM SUCESSO!');
+};
+
+// Mantido por compatibilidade (mas não é mais chamado diretamente)
+export const duplicarObra = abrirModalDuplicar;
 
 export const deleteObraCompleta = async (id) => {
     if(!confirm('⚠️ Excluir esta Obra completamente? Esta ação não pode ser desfeita.')) return;
@@ -208,9 +282,14 @@ export function renderObraDetail(fId){
             <div class="bg-arcco-lime/20 p-4 rounded-lg border border-arcco-lime/50 text-right shadow-sm col-span-2 lg:col-span-1"><p class="text-[9px] text-gray-600 font-bold uppercase mb-1">Preço Venda</p><p class="font-montserrat font-bold text-xl text-arcco-black">${fmtBRL(totalVenda+totalCompras)}</p></div>`;
     }
 
+    // ============================================================
+    // CORREÇÃO 3: Select de fornecedor agora carrega subordinados
+    // Ao selecionar o líder, aparece checkboxes dos subordinados
+    // ============================================================
     const fSel = document.getElementById('task-fornecedor');
     fSel.innerHTML = '<option value="">(SELECIONE A EQUIPE)</option>' +
-        STATE.forn.filter(f => f.status==='ativo'&&f.vinculo==='MASTER').map(f => `<option value="${f.id}">${f.nome}</option>`).join('');
+        STATE.forn.filter(f => f.status==='ativo'&&f.vinculo==='MASTER')
+            .map(f => `<option value="${f.id}">${f.nome}</option>`).join('');
 
     const depSel = document.getElementById('task-dep');
     depSel.innerHTML = '<option value="">NENHUMA (INÍCIO LIVRE)</option>' +
@@ -245,7 +324,7 @@ export function renderObraDetail(fId){
         if(t) modSel.value = t.modulo;
     } else if(prevMod && mods.includes(prevMod)) modSel.value = prevMod;
 
-    // Charts
+    // Gráfico de rosca (avanço geral)
     const done = tasks.filter(t => t.status===2).length;
     const pct  = tasks.length ? Math.round(done/tasks.length*100) : 0;
     document.getElementById('det-pct-text').innerText = `${pct}%`;
@@ -254,6 +333,7 @@ export function renderObraDetail(fId){
     const ctxD = document.getElementById('det-chart-donut');
     if(ctxD) STATE.donutChart = new Chart(ctxD,{type:'doughnut',data:{datasets:[{data:[done,tasks.length-done],backgroundColor:['#ccff00','#f4f4f5'],borderWidth:0}]},options:{maintainAspectRatio:false,cutout:'78%',plugins:{tooltip:{enabled:false}}}});
 
+    // Gráfico de barras por módulo
     const phases = {};
     tasks.forEach(t => { if(!phases[t.modulo]) phases[t.modulo]={done:0,total:0}; phases[t.modulo].total++; if(t.status===2) phases[t.modulo].done++; });
     const phLabels = Object.keys(phases);
@@ -261,7 +341,7 @@ export function renderObraDetail(fId){
     const ctxB = document.getElementById('det-chart-bar');
     if(ctxB) STATE.barChart = new Chart(ctxB,{type:'bar',data:{labels:phLabels,datasets:[{label:'Concluído',data:phLabels.map(l=>phases[l].done),backgroundColor:'#111111',barThickness:16,borderRadius:4},{label:'Pendente',data:phLabels.map(l=>phases[l].total-phases[l].done),backgroundColor:'#e4e4e7',barThickness:16,borderRadius:4}]},options:{maintainAspectRatio:false,responsive:true,scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,display:false}},plugins:{legend:{display:false}}}});
 
-    // Alertas
+    // Alertas de atraso
     const alertC = document.getElementById('det-alertas-container');
     const nowD   = today();
     const late   = tasks.filter(t => t.status!==2&&t.fim&&parseDate(t.fim)<nowD);
@@ -309,12 +389,24 @@ export function renderCronogramaList(o, mods, tasks, phases){
     lucide.createIcons();
 }
 
-// ── Task Row ──────────────────────────────────────────────────
+// ── Task Row (linha de cada serviço no cronograma) ────────────
 export function renderTaskRow(t, allTasks, o){
     const isBlocked  = t.dep?.some(dId => { const dt=allTasks.find(x=>x.id===dId); return dt&&dt.status!==2; });
     const isEditing  = t.id===STATE.editingTaskId;
     const pertHtml   = getPertHtml(t);
-    const isEmpreita = t.tipo_contratacao==='empreita';
+
+    // ============================================================
+    // CORREÇÃO 4: Alerta de custo de diárias vs. MO previsto
+    // Calcula quanto custaria a equipe no período e compara com MO
+    // ============================================================
+    const alertaDiaria = _alertaCustoDiaria(t);
+
+    // ============================================================
+    // CORREÇÃO 5: Mostra as 3 datas em destaque na linha
+    // Início, Fim e PERT bem visíveis
+    // ============================================================
+    const datasHtml = _datasDestaque(t);
+
     return `
     <div class="p-4 flex flex-col md:flex-row justify-between items-center gap-4 hover:bg-gray-50 transition-colors ${isEditing?'editing-row':''} ${isBlocked?'alert-blocked':''}">
         <div class="flex-1 flex gap-4 items-start cursor-pointer w-full" onclick="APP.editTask('${t.id}')">
@@ -322,24 +414,27 @@ export function renderTaskRow(t, allTasks, o){
             <div class="flex-1">
                 <p class="text-sm font-bold text-arcco-black uppercase">${t.nome} <span class="text-green-600 font-normal ml-2 text-xs hidden sm:inline">${fmtBRL(t.valor_venda||t.valor)}</span></p>
                 <div class="flex flex-wrap gap-1 mt-1.5 mb-2">
-                    ${isEmpreita
-                        ? `<span class="text-[8px] font-bold text-arcco-orange bg-orange-50 border border-orange-200 px-1.5 py-0.5 rounded uppercase flex items-center gap-1"><i data-lucide="handshake" class="w-2.5 h-2.5"></i> Empreita: ${fmtBRL(t.valor_empreita||t.valor)}</span>`
-                        : `${t.valor_mo?`<span class="text-[8px] font-bold text-gray-500 uppercase border border-gray-200 px-1.5 py-0.5 rounded">MO: ${fmtBRL(t.valor_mo)}</span>`:''}
-                           ${t.valor_mat?`<span class="text-[8px] font-bold text-gray-500 uppercase border border-gray-200 px-1.5 py-0.5 rounded">MAT: ${fmtBRL(t.valor_mat)}</span>`:''}
-                           ${t.valor_eq?`<span class="text-[8px] font-bold text-gray-500 uppercase border border-gray-200 px-1.5 py-0.5 rounded">EQ: ${fmtBRL(t.valor_eq)}</span>`:''}`}
+                    ${t.valor_mo?`<span class="text-[8px] font-bold text-gray-500 uppercase border border-gray-200 px-1.5 py-0.5 rounded">MO: ${fmtBRL(t.valor_mo)}</span>`:''}
+                    ${t.valor_mat?`<span class="text-[8px] font-bold text-gray-500 uppercase border border-gray-200 px-1.5 py-0.5 rounded">MAT: ${fmtBRL(t.valor_mat)}</span>`:''}
+                    ${t.valor_eq?`<span class="text-[8px] font-bold text-gray-500 uppercase border border-gray-200 px-1.5 py-0.5 rounded">EQ: ${fmtBRL(t.valor_eq)}</span>`:''}
                     ${t.taxa_pct>0
                         ? t.taxa_tipo==='ADM'
                             ? `<span class="text-[8px] font-bold text-white uppercase bg-gray-800 px-1.5 py-0.5 rounded">ADM: ${t.taxa_pct}%</span>`
                             : `<span class="text-[8px] font-bold text-arcco-black uppercase bg-arcco-lime px-1.5 py-0.5 rounded">BDI: ${t.taxa_pct}%</span>`
                         : ''}
                 </div>
-                <div class="flex flex-wrap items-center gap-2">
+                <!-- CORREÇÃO 5: Datas em destaque abaixo do nome -->
+                ${datasHtml}
+                <div class="flex flex-wrap items-center gap-2 mt-1">
                     <span class="text-[9px] font-bold text-arcco-black uppercase bg-gray-200 px-2 py-0.5 rounded">${t.forn}</span>
-                    <span class="text-[9px] font-bold text-gray-500 uppercase flex items-center gap-1"><i data-lucide="calendar" class="w-3 h-3"></i> ${fmtDate(t.fim)}</span>
+                    <!-- Subordinados da equipe selecionada -->
+                    ${(t.membros||[]).map(m => `<span class="text-[8px] font-bold text-gray-600 uppercase bg-gray-100 border border-gray-200 px-1.5 py-0.5 rounded">${m}</span>`).join('')}
                     ${pertHtml}
                     ${isBlocked?`<span class="text-[9px] font-bold text-arcco-red uppercase bg-red-100 px-2 py-0.5 rounded flex items-center gap-1"><i data-lucide="lock" class="w-3 h-3"></i> TRAVADO</span>`:''}
                     ${t.status===2&&t.concluidoPor?`<span class="text-[9px] font-bold text-green-700 uppercase bg-green-100 px-2 py-0.5 rounded border border-green-200"><i data-lucide="check" class="inline w-3 h-3"></i> ${t.concluidoPor}</span>`:''}
                 </div>
+                <!-- CORREÇÃO 4: Alerta de custo de diárias -->
+                ${alertaDiaria}
             </div>
         </div>
         <div class="flex gap-2 shrink-0">
@@ -351,6 +446,106 @@ export function renderTaskRow(t, allTasks, o){
     </div>`;
 }
 
+// ============================================================
+// CORREÇÃO 5 (auxiliar): Renderiza as 3 datas em destaque
+// ============================================================
+function _datasDestaque(t){
+    if(!t.inicio && !t.fim) return '';
+    const inicioFmt = t.inicio ? fmtDate(t.inicio) : '—';
+    const fimFmt    = t.fim    ? fmtDate(t.fim)    : '—';
+
+    // Calcula data PERT se tiver início e fim
+    let pertFmt = '—';
+    if(t.inicio && t.fim){
+        const ds = parseDate(t.inicio);
+        const de = parseDate(t.fim);
+        const m  = Math.round((de-ds)/86400000);
+        if(m >= 0){
+            const ot = m + (t.otimista||0);
+            const pe = m + (t.pessimista||0);
+            const te = (ot + 4*m + pe) / 6;
+            const dp = new Date(ds);
+            dp.setDate(dp.getDate() + Math.round(te));
+            pertFmt = fmtDate(dp.toISOString().split('T')[0]);
+        }
+    }
+
+    return `
+    <div class="flex flex-wrap gap-2 mt-2">
+        <div class="flex items-center gap-1 bg-blue-50 border border-blue-200 px-2 py-1 rounded">
+            <i data-lucide="play-circle" class="w-3 h-3 text-blue-500 shrink-0"></i>
+            <span class="text-[9px] font-bold text-blue-700 uppercase">Início: ${inicioFmt}</span>
+        </div>
+        <div class="flex items-center gap-1 bg-gray-100 border border-gray-300 px-2 py-1 rounded">
+            <i data-lucide="flag" class="w-3 h-3 text-gray-500 shrink-0"></i>
+            <span class="text-[9px] font-bold text-gray-700 uppercase">Fim: ${fimFmt}</span>
+        </div>
+        ${pertFmt !== '—' ? `
+        <div class="flex items-center gap-1 bg-purple-50 border border-purple-200 px-2 py-1 rounded">
+            <i data-lucide="trending-up" class="w-3 h-3 text-purple-500 shrink-0"></i>
+            <span class="text-[9px] font-bold text-purple-700 uppercase">PERT: ${pertFmt}</span>
+        </div>` : ''}
+    </div>`;
+}
+
+// ============================================================
+// CORREÇÃO 4 (auxiliar): Calcula custo de diárias da equipe
+// e retorna HTML do alerta comparando com MO previsto
+// ============================================================
+function _alertaCustoDiaria(t){
+    // Precisa de início, fim e membros selecionados para calcular
+    if(!t.inicio || !t.fim || !t.forn) return '';
+
+    // Dias de duração do serviço
+    const ds   = parseDate(t.inicio);
+    const de   = parseDate(t.fim);
+    const dias = Math.ceil((de - ds) / 86400000) + 1; // +1 para incluir o dia de início
+    if(dias <= 0) return '';
+
+    // Coleta a diária do líder
+    const lider  = STATE.forn.find(f => f.id === t.forn && f.status === 'ativo');
+    if(!lider) return '';
+
+    // Membros selecionados para esta tarefa (array de IDs guardados em t.membros_ids)
+    const membrosSelecionados = (t.membros_ids || [])
+        .map(id => STATE.forn.find(f => f.id === id && f.status === 'ativo'))
+        .filter(Boolean);
+
+    // Custo total = diária do líder + diárias dos membros × dias
+    const custoDiariaLider   = (parseFloat(lider.diaria)||0) * dias;
+    const custoDiariasMembros = membrosSelecionados.reduce((acc, m) => acc + (parseFloat(m.diaria)||0) * dias, 0);
+    const custoTotalDiarias  = custoDiariaLider + custoDiariasMembros;
+
+    // Só mostra o alerta se houver diárias configuradas
+    if(custoTotalDiarias === 0) return '';
+
+    // Valor de MO previsto (ou custo total se MO não foi detalhado)
+    const moPrevisto = parseFloat(t.valor_mo) || parseFloat(t.valor) || 0;
+
+    // Decide o status do alerta
+    let alertClass, alertIcon, alertMsg;
+    if(custoTotalDiarias > moPrevisto){
+        alertClass = 'bg-red-50 border-red-300 text-red-700';
+        alertIcon  = 'alert-triangle';
+        alertMsg   = `Custo diárias ${fmtBRL(custoTotalDiarias)} MAIOR que o previsto (${fmtBRL(moPrevisto)}) em ${dias} dias`;
+    } else if(custoTotalDiarias === moPrevisto){
+        alertClass = 'bg-yellow-50 border-yellow-300 text-yellow-700';
+        alertIcon  = 'minus-circle';
+        alertMsg   = `Custo diárias ${fmtBRL(custoTotalDiarias)} IGUAL ao previsto em ${dias} dias`;
+    } else {
+        alertClass = 'bg-green-50 border-green-300 text-green-700';
+        alertIcon  = 'check-circle-2';
+        alertMsg   = `Custo diárias ${fmtBRL(custoTotalDiarias)} abaixo do previsto (${fmtBRL(moPrevisto)}) em ${dias} dias`;
+    }
+
+    return `
+    <div class="mt-2 flex items-center gap-1.5 border px-2 py-1.5 rounded text-[8px] font-bold uppercase ${alertClass}">
+        <i data-lucide="${alertIcon}" class="w-3 h-3 shrink-0"></i>
+        ${alertMsg}
+    </div>`;
+}
+
+// ── PERT badge para o topo do card (pequeno, mantido para compatibilidade) ──
 export function getPertHtml(t){
     if(!t.inicio||!t.fim) return '';
     const [sy,sm,sd]=t.inicio.split('-'); const [ey,em,ed]=t.fim.split('-');
@@ -363,65 +558,242 @@ export function getPertHtml(t){
     return `<span class="text-[8px] font-bold text-blue-700 uppercase bg-blue-100 px-1.5 py-0.5 rounded border border-blue-200" title="PERT: ${te.toFixed(1)} dias">PERT: ${fmt}</span>`;
 }
 
-// ── Task Form ─────────────────────────────────────────────────
-export const setTipoContratacao = (tipo) => {
-    document.getElementById('task-tipo-contratacao').value = tipo;
-    const detEl  = document.getElementById('campos-detalhado');
-    const empEl  = document.getElementById('campos-empreita');
-    const btnDet = document.getElementById('btn-tipo-detalhado');
-    const btnEmp = document.getElementById('btn-tipo-empreita');
-    if(tipo==='empreita'){
-        detEl.classList.add('hidden'); empEl.classList.remove('hidden');
-        btnEmp.classList.replace('bg-white','bg-arcco-orange'); btnEmp.classList.replace('text-gray-500','text-white'); btnEmp.classList.replace('border-gray-300','border-arcco-orange');
-        btnDet.classList.replace('bg-arcco-black','bg-white'); btnDet.classList.replace('text-white','text-gray-500'); btnDet.classList.add('border-gray-300'); btnDet.classList.remove('border-arcco-black');
-    } else {
-        empEl.classList.add('hidden'); detEl.classList.remove('hidden');
-        btnDet.classList.replace('bg-white','bg-arcco-black'); btnDet.classList.replace('text-gray-500','text-white'); btnDet.classList.remove('border-gray-300'); btnDet.classList.add('border-arcco-black');
-        btnEmp.classList.replace('bg-arcco-orange','bg-white'); btnEmp.classList.replace('text-white','text-gray-500'); btnEmp.classList.replace('border-arcco-orange','border-gray-300');
-    }
-    calcTotalTask();
+// ============================================================
+// CORREÇÃO 2: Formulário simplificado
+// Agora é: Custo Total + BDI + Preço Venda
+// Com toggle opcional para detalhar MO/MAT/EQ/OUTROS
+// ============================================================
+
+// Alterna mostrar/ocultar o painel de detalhamento de custos
+export const toggleDetalhamento = () => {
+    const painel = document.getElementById('campos-detalhe-custos');
+    const btn    = document.getElementById('btn-toggle-detalhe');
+    if(!painel) return;
+    const aberto = !painel.classList.contains('hidden');
+    painel.classList.toggle('hidden');
+    if(btn) btn.innerText = aberto ? '▶ Detalhar Custos (MO, MAT, EQ, Outros)' : '▼ Ocultar Detalhamento';
 };
 
+// Calcula o Preço de Venda = Custo Total × (1 + BDI/100)
+// e atualiza os campos automaticamente
 export const calcTotalTask = () => {
-    const tipo = document.getElementById('task-tipo-contratacao')?.value || 'detalhado';
-    if(tipo==='empreita'){
-        const emp = parseFloat(document.getElementById('task-empreita')?.value)||0;
-        const bdi = parseFloat(document.getElementById('task-empreita-bdi')?.value)||0;
-        const venda = emp*(1+bdi/100);
-        document.getElementById('task-valor').value = emp;
-        document.getElementById('task-valor-venda').value = venda;
-        document.getElementById('task-empreita-custo-display').innerText = fmtBRL(emp);
-        document.getElementById('task-empreita-venda-display').innerText = fmtBRL(venda);
-    } else {
-        const mo  = parseFloat(document.getElementById('task-mo').value)||0;
-        const mat = parseFloat(document.getElementById('task-mat').value)||0;
-        const eq  = parseFloat(document.getElementById('task-eq').value)||0;
-        const ou  = parseFloat(document.getElementById('task-ou').value)||0;
-        const pct = parseFloat(document.getElementById('task-taxa-pct').value)||0;
-        const total = mo+mat+eq+ou;
-        const venda = total*(1+pct/100);
-        document.getElementById('task-valor').value = total;
-        document.getElementById('task-valor-venda').value = venda;
-        document.getElementById('task-valor-display').innerText = fmtBRL(total);
-        document.getElementById('task-venda-display').innerText = fmtBRL(venda);
-    }
+    const custo = parseFloat(document.getElementById('task-custo-total')?.value) || 0;
+    const bdi   = parseFloat(document.getElementById('task-bdi')?.value) || 0;
+    const venda = custo * (1 + bdi / 100);
+
+    // Atualiza o campo de preço de venda
+    const vendaEl = document.getElementById('task-valor-venda-display');
+    if(vendaEl) vendaEl.innerText = fmtBRL(venda);
+
+    // Guarda os valores nos campos ocultos que serão salvos
+    const elValor = document.getElementById('task-valor');
+    const elVenda = document.getElementById('task-valor-venda');
+    if(elValor) elValor.value = custo;
+    if(elVenda) elVenda.value = venda;
+
+    // ============================================================
+    // CORREÇÃO 4: Ao mudar valores, re-calcula o alerta de diárias
+    // ============================================================
+    _atualizarAlertaDiariaForm();
 };
 
+// Calcula e mostra a data PERT no formulário
 export const calcPERT = () => {
-    const s=document.getElementById('task-inicio').value;
-    const e=document.getElementById('task-fim').value;
-    const disp=document.getElementById('pert-display');
-    if(!s||!e){ disp.innerText='---'; return; }
-    const [sy,sm,sd]=s.split('-'); const [ey,em,ed]=e.split('-');
-    const ds=new Date(sy,sm-1,sd); const de=new Date(ey,em-1,ed);
-    const m=Math.round((de-ds)/86400000);
-    if(m<0){ disp.innerText='Datas inválidas'; return; }
-    const ot=m+(parseInt(document.getElementById('task-otimista').value)||0);
-    const pe=m+(parseInt(document.getElementById('task-pessimista').value)||0);
-    const te=(ot+4*m+pe)/6;
-    const dp=new Date(ds); dp.setDate(dp.getDate()+Math.round(te));
-    disp.innerText=`${te.toFixed(1)} dias (${fmtDate(dp.toISOString().split('T')[0])})`;
+    const s    = document.getElementById('task-inicio').value;
+    const e    = document.getElementById('task-fim').value;
+    const disp = document.getElementById('pert-display');
+    if(!s || !e){ if(disp) disp.innerText = '---'; return; }
+    const [sy,sm,sd] = s.split('-'); const [ey,em,ed] = e.split('-');
+    const ds = new Date(sy,sm-1,sd); const de = new Date(ey,em-1,ed);
+    const m  = Math.round((de - ds) / 86400000);
+    if(m < 0){ if(disp) disp.innerText = 'Datas inválidas'; return; }
+    const ot = m + (parseInt(document.getElementById('task-otimista').value)||0);
+    const pe = m + (parseInt(document.getElementById('task-pessimista').value)||0);
+    const te = (ot + 4*m + pe) / 6;
+    const dp = new Date(ds); dp.setDate(dp.getDate() + Math.round(te));
+    if(disp) disp.innerText = `${te.toFixed(1)} dias (${fmtDate(dp.toISOString().split('T')[0])})`;
+
+    // ============================================================
+    // CORREÇÃO 5: Após recalcular datas, verifica sobreposição
+    // ============================================================
+    _verificarSobreposicaoDatas(s, e);
+
+    // Atualiza alerta de diárias ao mudar datas
+    _atualizarAlertaDiariaForm();
 };
+
+// ============================================================
+// CORREÇÃO 5 (auxiliar): Verifica se o período do serviço
+// se sobrepõe com outro serviço da mesma obra
+// ============================================================
+function _verificarSobreposicaoDatas(inicio, fim){
+    const alertEl = document.getElementById('alerta-sobreposicao');
+    if(!alertEl || !inicio || !fim) return;
+
+    const o = STATE.obras.find(x => x.firebaseId === STATE.currentObraId);
+    if(!o) return;
+
+    const ds = parseDate(inicio);
+    const de = parseDate(fim);
+    const editandoId = STATE.editingTaskId;
+
+    // Procura qualquer outra tarefa com datas que se sobreponham
+    const conflitos = (o.tasks || []).filter(t => {
+        if(t.id === editandoId) return false; // ignora a própria tarefa sendo editada
+        if(!t.inicio || !t.fim) return false;
+        const tS = parseDate(t.inicio);
+        const tE = parseDate(t.fim);
+        // Há sobreposição se o início de um é antes do fim do outro
+        return ds <= tE && de >= tS;
+    });
+
+    if(conflitos.length){
+        const nomes = conflitos.slice(0,3).map(t => t.nome).join(', ');
+        alertEl.innerHTML = `
+            <div class="flex items-center gap-2 bg-yellow-50 border border-yellow-300 rounded px-3 py-2 text-[9px] font-bold text-yellow-700 uppercase">
+                <i data-lucide="clock-alert" class="w-3 h-3 shrink-0"></i>
+                Data igual a: ${nomes}${conflitos.length>3?' e mais...':''}
+            </div>`;
+        lucide.createIcons();
+        alertEl.classList.remove('hidden');
+    } else {
+        alertEl.innerHTML = '';
+        alertEl.classList.add('hidden');
+    }
+}
+
+// ============================================================
+// CORREÇÃO 3 (auxiliar): Ao trocar o líder no formulário,
+// carrega os subordinados como checkboxes para seleção múltipla
+// ============================================================
+export const onChangeFornecedor = () => {
+    const liderId  = document.getElementById('task-fornecedor').value;
+    const contMembros = document.getElementById('membros-equipe-container');
+    if(!contMembros) return;
+
+    if(!liderId){
+        contMembros.classList.add('hidden');
+        return;
+    }
+
+    // Busca todos os membros ativos vinculados a este líder
+    const membros = STATE.forn.filter(f => f.vinculo === liderId && f.status === 'ativo');
+
+    if(!membros.length){
+        contMembros.innerHTML = `
+            <p class="text-[9px] font-bold text-gray-400 uppercase mt-2">
+                Este líder não tem subordinados cadastrados.
+            </p>`;
+        contMembros.classList.remove('hidden');
+        return;
+    }
+
+    // Mantém os membros já selecionados se estiver editando
+    const jaSelecionados = _getMembrosIdsSelecionados();
+
+    contMembros.innerHTML = `
+        <div class="mt-3 border border-gray-200 rounded-lg overflow-hidden">
+            <div class="bg-gray-100 px-3 py-2 border-b border-gray-200">
+                <p class="text-[9px] font-bold text-gray-600 uppercase">Subordinados da Equipe (selecione os que vão trabalhar)</p>
+            </div>
+            <div class="p-3 grid grid-cols-1 gap-2">
+                ${membros.map(m => `
+                <label class="flex items-center gap-3 p-2 rounded border border-gray-100 hover:bg-arcco-lime/10 cursor-pointer">
+                    <input type="checkbox"
+                        id="membro-check-${m.id}"
+                        value="${m.id}"
+                        data-nome="${m.nome}"
+                        data-diaria="${m.diaria||0}"
+                        class="membro-checkbox w-4 h-4 accent-arcco-black"
+                        onchange="APP.onChangeMembros()"
+                        ${jaSelecionados.includes(m.id)?'checked':''}>
+                    <div class="flex-1">
+                        <p class="text-xs font-bold text-arcco-black uppercase">${m.nome}</p>
+                        <p class="text-[9px] text-gray-400 font-bold uppercase">${m.espec} ${m.diaria?'• Diária: '+fmtBRL(m.diaria):''}</p>
+                    </div>
+                </label>`).join('')}
+            </div>
+        </div>`;
+    contMembros.classList.remove('hidden');
+
+    // Recalcula alerta de diárias ao trocar de líder
+    _atualizarAlertaDiariaForm();
+};
+
+// Retorna os IDs de membros já marcados nos checkboxes
+function _getMembrosIdsSelecionados(){
+    return Array.from(document.querySelectorAll('.membro-checkbox:checked')).map(el => el.value);
+}
+
+// Retorna os nomes de membros já marcados
+function _getMembrosNomesSelecionados(){
+    return Array.from(document.querySelectorAll('.membro-checkbox:checked')).map(el => el.dataset.nome);
+}
+
+// Chamado quando o usuário marca/desmarca um membro
+export const onChangeMembros = () => {
+    _atualizarAlertaDiariaForm();
+};
+
+// ============================================================
+// CORREÇÃO 4 (auxiliar): Mostra alerta no formulário
+// comparando custo de diárias com MO previsto
+// ============================================================
+function _atualizarAlertaDiariaForm(){
+    const alertEl = document.getElementById('alerta-diaria-form');
+    if(!alertEl) return;
+
+    const inicio = document.getElementById('task-inicio')?.value;
+    const fim    = document.getElementById('task-fim')?.value;
+    const liderId = document.getElementById('task-fornecedor')?.value;
+
+    if(!inicio || !fim || !liderId){ alertEl.classList.add('hidden'); return; }
+
+    const ds   = parseDate(inicio);
+    const de   = parseDate(fim);
+    const dias = Math.ceil((de - ds) / 86400000) + 1;
+    if(dias <= 0){ alertEl.classList.add('hidden'); return; }
+
+    // Diária do líder
+    const lider = STATE.forn.find(f => f.id === liderId && f.status === 'ativo');
+    if(!lider){ alertEl.classList.add('hidden'); return; }
+    const custoDiariaLider = (parseFloat(lider.diaria)||0) * dias;
+
+    // Diárias dos membros marcados
+    const custoDiariasMembros = Array.from(document.querySelectorAll('.membro-checkbox:checked'))
+        .reduce((acc, el) => acc + (parseFloat(el.dataset.diaria)||0) * dias, 0);
+
+    const custoTotal = custoDiariaLider + custoDiariasMembros;
+    if(custoTotal === 0){ alertEl.classList.add('hidden'); return; }
+
+    // Pega MO detalhado ou custo total como referência
+    const moEl    = document.getElementById('task-mo');
+    const custoEl = document.getElementById('task-custo-total');
+    const moPrev  = parseFloat(moEl?.value) || parseFloat(custoEl?.value) || 0;
+
+    let cls, icon, msg;
+    if(custoTotal > moPrev){
+        cls  = 'bg-red-50 border-red-400 text-red-700';
+        icon = 'alert-triangle';
+        msg  = `⚠️ Diárias (${fmtBRL(custoTotal)} em ${dias}d) MAIOR que MO previsto (${fmtBRL(moPrev)})`;
+    } else if(custoTotal === moPrev){
+        cls  = 'bg-yellow-50 border-yellow-400 text-yellow-700';
+        icon = 'minus-circle';
+        msg  = `Diárias (${fmtBRL(custoTotal)} em ${dias}d) IGUAL ao MO previsto`;
+    } else {
+        cls  = 'bg-green-50 border-green-400 text-green-700';
+        icon = 'check-circle-2';
+        msg  = `✓ Diárias (${fmtBRL(custoTotal)} em ${dias}d) dentro do MO previsto (${fmtBRL(moPrev)})`;
+    }
+
+    alertEl.innerHTML = `
+        <div class="flex items-center gap-2 border rounded px-3 py-2 text-[9px] font-bold uppercase ${cls}">
+            <i data-lucide="${icon}" class="w-3 h-3 shrink-0"></i>
+            ${msg}
+        </div>`;
+    alertEl.classList.remove('hidden');
+    lucide.createIcons();
+}
 
 export const updateInicioStyle = (el) => {
     if(!el) return;
@@ -449,111 +821,220 @@ export const handleDepChange = () => {
     }
 };
 
+// ── Salvar Serviço ─────────────────────────────────────────────
 export const saveTaskToObra = async () => {
-    const o    = STATE.obras.find(x => x.firebaseId===STATE.currentObraId);
-    const tipo = document.getElementById('task-tipo-contratacao')?.value || 'detalhado';
-    const isEmpreita = tipo==='empreita';
-    let mo=0,mat=0,eq=0,ou=0,pct=0,tipoTaxa='BDI',total=0,venda=0;
-    if(isEmpreita){
-        const emp    = parseFloat(document.getElementById('task-empreita')?.value)||0;
-        const bdiEmp = parseFloat(document.getElementById('task-empreita-bdi')?.value)||0;
-        total=emp; venda=emp*(1+bdiEmp/100); pct=bdiEmp; ou=emp;
-    } else {
-        mo  = parseFloat(document.getElementById('task-mo').value)||0;
-        mat = parseFloat(document.getElementById('task-mat').value)||0;
-        eq  = parseFloat(document.getElementById('task-eq').value)||0;
-        ou  = parseFloat(document.getElementById('task-ou').value)||0;
-        pct = parseFloat(document.getElementById('task-taxa-pct').value)||0;
-        tipoTaxa = document.getElementById('task-taxa-tipo').value;
-        total=mo+mat+eq+ou; venda=total*(1+pct/100);
-    }
+    const o = STATE.obras.find(x => x.firebaseId===STATE.currentObraId);
+
+    // ============================================================
+    // CORREÇÃO 2: Lê Custo Total + BDI (novo formulário simplificado)
+    // + campos de detalhamento se preenchidos
+    // ============================================================
+    const custo  = parseFloat(document.getElementById('task-custo-total')?.value) || 0;
+    const bdi    = parseFloat(document.getElementById('task-bdi')?.value)         || 0;
+    const venda  = custo * (1 + bdi / 100);
+
+    // Detalhamento opcional (MO/MAT/EQ/OUTROS)
+    const mo  = parseFloat(document.getElementById('task-mo')?.value)  || 0;
+    const mat = parseFloat(document.getElementById('task-mat')?.value) || 0;
+    const eq  = parseFloat(document.getElementById('task-eq')?.value)  || 0;
+    const ou  = parseFloat(document.getElementById('task-ou')?.value)  || 0;
+
+    // ============================================================
+    // CORREÇÃO 3: Guarda o líder + membros selecionados
+    // ============================================================
+    const membrosIds   = _getMembrosIdsSelecionados();
+    const membrosNomes = _getMembrosNomesSelecionados();
+
     const taskData = {
-        modulo: document.getElementById('task-modulo').value,
-        nome:   document.getElementById('task-nome').value,
-        tipo_contratacao: tipo,
-        valor_mo: isEmpreita?0:mo, valor_mat: isEmpreita?0:mat,
-        valor_eq: isEmpreita?0:eq, valor_ou: ou,
-        valor_empreita: isEmpreita?total:0,
-        valor: total, taxa_tipo: tipoTaxa, taxa_pct: pct, bdi: pct, valor_venda: venda,
-        forn:   document.getElementById('task-fornecedor').value,
+        modulo:   document.getElementById('task-modulo').value,
+        nome:     document.getElementById('task-nome').value,
+        // Custo e venda pelo novo modelo simplificado
+        valor:       custo,
+        valor_venda: venda,
+        taxa_pct:    bdi,
+        taxa_tipo:   'BDI',
+        bdi:         bdi,
+        // Detalhamento (se preenchido)
+        valor_mo:  mo,
+        valor_mat: mat,
+        valor_eq:  eq,
+        valor_ou:  ou,
+        // Equipe
+        forn:        document.getElementById('task-fornecedor').value,
+        membros_ids: membrosIds,    // IDs dos subordinados marcados
+        membros:     membrosNomes,  // Nomes para exibição
+        // Datas
         inicio: document.getElementById('task-inicio').value,
         fim:    document.getElementById('task-fim').value,
-        otimista:   parseInt(document.getElementById('task-otimista').value)||0,
-        pessimista: parseInt(document.getElementById('task-pessimista').value)||0,
-        dep:    document.getElementById('task-dep').value?[document.getElementById('task-dep').value]:[],
-        atencao: document.getElementById('task-atencao').dataset.active==='true',
+        otimista:   parseInt(document.getElementById('task-otimista').value)  || 0,
+        pessimista: parseInt(document.getElementById('task-pessimista').value)|| 0,
+        dep: document.getElementById('task-dep').value
+            ? [document.getElementById('task-dep').value] : [],
+        atencao: document.getElementById('task-atencao').dataset.active === 'true',
         status: 0
     };
-    if(!taskData.modulo||!taskData.nome||!taskData.forn) return showToast('DADOS OBRIGATÓRIOS FALTANDO');
+
+    if(!taskData.modulo || !taskData.nome || !taskData.forn)
+        return showToast('DADOS OBRIGATÓRIOS FALTANDO');
+
     let tasks;
     if(STATE.editingTaskId){
-        const old = o.tasks.find(t => t.id===STATE.editingTaskId);
-        tasks = o.tasks.map(t => t.id===STATE.editingTaskId?{...t,...taskData,status:old.status}:t);
+        const old = o.tasks.find(t => t.id === STATE.editingTaskId);
+        tasks = o.tasks.map(t => t.id===STATE.editingTaskId ? {...t,...taskData,status:old.status} : t);
         showToast('SERVIÇO ATUALIZADO');
     } else {
-        tasks = [...(o.tasks||[]), {id:`T-${Date.now()}`,...taskData}];
+        tasks = [...(o.tasks||[]), {id:`T-${Date.now()}`, ...taskData}];
         showToast('SERVIÇO INSERIDO');
     }
-    await apiUpdate('obras',STATE.currentObraId,{tasks});
+    await apiUpdate('obras', STATE.currentObraId, {tasks});
     resetTaskForm();
 };
 
+// ── Editar Tarefa (preenche o formulário para edição) ──────────
 export const editTask = (id) => {
     const o = STATE.obras.find(x => x.firebaseId===STATE.currentObraId);
     const t = o.tasks.find(x => x.id===id);
     STATE.editingTaskId = id;
+
     document.getElementById('task-modulo').value = t.modulo;
     document.getElementById('task-nome').value   = t.nome;
-    const tipo = t.tipo_contratacao||'detalhado';
-    setTipoContratacao(tipo);
-    if(tipo==='empreita'){
-        document.getElementById('task-empreita').value     = t.valor_empreita||t.valor||'';
-        document.getElementById('task-empreita-bdi').value = t.taxa_pct||t.bdi||'';
-    } else {
-        document.getElementById('task-mo').value  = t.valor_mo||'';
-        document.getElementById('task-mat').value = t.valor_mat||'';
-        document.getElementById('task-eq').value  = t.valor_eq||'';
-        document.getElementById('task-ou').value  = t.valor_ou||'';
-        document.getElementById('task-taxa-tipo').value = t.taxa_tipo||'BDI';
-        document.getElementById('task-taxa-pct').value  = t.taxa_pct!==undefined?t.taxa_pct:(t.bdi||'');
+
+    // ============================================================
+    // CORREÇÃO 2: Preenche Custo Total + BDI no novo formulário
+    // Se o serviço antigo era "empreita", usa o valor como custo total
+    // ============================================================
+    const custoEl = document.getElementById('task-custo-total');
+    const bdiEl   = document.getElementById('task-bdi');
+    if(custoEl) custoEl.value = t.valor || '';
+    if(bdiEl)   bdiEl.value  = t.taxa_pct || t.bdi || '';
+
+    // Detalhamento (se havia)
+    const moEl  = document.getElementById('task-mo');
+    const matEl = document.getElementById('task-mat');
+    const eqEl  = document.getElementById('task-eq');
+    const ouEl  = document.getElementById('task-ou');
+    if(moEl)  moEl.value  = t.valor_mo  || '';
+    if(matEl) matEl.value = t.valor_mat || '';
+    if(eqEl)  eqEl.value  = t.valor_eq  || '';
+    if(ouEl)  ouEl.value  = t.valor_ou  || '';
+
+    // Se algum detalhe foi preenchido, abre o painel de detalhamento
+    if((t.valor_mo || t.valor_mat || t.valor_eq || t.valor_ou)){
+        const painel = document.getElementById('campos-detalhe-custos');
+        const btn    = document.getElementById('btn-toggle-detalhe');
+        if(painel) painel.classList.remove('hidden');
+        if(btn)    btn.innerText = '▼ Ocultar Detalhamento';
     }
+
     calcTotalTask();
+
+    // ============================================================
+    // CORREÇÃO 3: Preenche o líder e re-carrega os subordinados
+    // ============================================================
     document.getElementById('task-fornecedor').value = t.forn;
-    const el = document.getElementById('task-inicio'); el.value=t.inicio||''; updateInicioStyle(el);
-    document.getElementById('task-fim').value        = t.fim||'';
-    document.getElementById('task-otimista').value   = t.otimista||'0';
-    document.getElementById('task-pessimista').value = t.pessimista||'0';
-    document.getElementById('task-dep').value        = t.dep?.length?t.dep[0]:'';
+    // Dispara o carregamento dos subordinados do líder
+    onChangeFornecedor();
+    // Após carregar, marca os membros que já estavam selecionados
+    setTimeout(() => {
+        (t.membros_ids || []).forEach(mid => {
+            const cb = document.getElementById(`membro-check-${mid}`);
+            if(cb) cb.checked = true;
+        });
+        _atualizarAlertaDiariaForm();
+    }, 50);
+
+    // Datas
+    const el = document.getElementById('task-inicio');
+    el.value = t.inicio || '';
+    updateInicioStyle(el);
+    document.getElementById('task-fim').value        = t.fim || '';
+    document.getElementById('task-otimista').value   = t.otimista || '0';
+    document.getElementById('task-pessimista').value = t.pessimista || '0';
+    document.getElementById('task-dep').value        = t.dep?.length ? t.dep[0] : '';
     calcPERT();
+
+    // Botão de atenção
     const btnA = document.getElementById('task-atencao');
-    btnA.dataset.active = t.atencao?'true':'false';
-    if(t.atencao){ btnA.classList.add('bg-red-50','text-arcco-red','border-red-500'); btnA.classList.remove('text-gray-300','border-gray-600'); }
-    else { btnA.classList.remove('bg-red-50','text-arcco-red','border-red-500'); btnA.classList.add('text-gray-300','border-gray-600'); }
+    btnA.dataset.active = t.atencao ? 'true' : 'false';
+    if(t.atencao){
+        btnA.classList.add('bg-red-50','text-arcco-red','border-red-500');
+        btnA.classList.remove('text-gray-300','border-gray-600');
+    } else {
+        btnA.classList.remove('bg-red-50','text-arcco-red','border-red-500');
+        btnA.classList.add('text-gray-300','border-gray-600');
+    }
+
+    // Muda visual do botão para modo edição
     const btn = document.getElementById('btn-save-task');
-    btn.innerText = 'ATUALIZAR SERVIÇO'; btn.classList.add('bg-arcco-black','text-white'); btn.classList.remove('bg-arcco-lime','text-arcco-black');
+    btn.innerText = 'ATUALIZAR SERVIÇO';
+    btn.classList.add('bg-arcco-black','text-white');
+    btn.classList.remove('bg-arcco-lime','text-arcco-black');
     document.getElementById('btn-cancel-edit').classList.remove('hidden');
+
     renderObraDetail(STATE.currentObraId);
-    document.getElementById('task-modulo').scrollIntoView({behavior:'smooth',block:'center'});
+    document.getElementById('task-modulo').scrollIntoView({behavior:'smooth', block:'center'});
 };
 
+// ── Reset do formulário de tarefa ──────────────────────────────
 export const resetTaskForm = () => {
     STATE.editingTaskId = null;
-    ['task-nome','task-mo','task-mat','task-eq','task-ou','task-taxa-pct','task-empreita','task-empreita-bdi'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
-    setTipoContratacao('detalhado');
-    calcTotalTask();
+
+    // Limpa todos os campos
+    ['task-nome','task-custo-total','task-bdi',
+     'task-mo','task-mat','task-eq','task-ou'].forEach(id => {
+        const el = document.getElementById(id);
+        if(el) el.value = '';
+    });
+
+    // Limpa displays calculados
+    const vendaEl = document.getElementById('task-valor-venda-display');
+    if(vendaEl) vendaEl.innerText = fmtBRL(0);
+
+    // Fecha o painel de detalhamento
+    const painel = document.getElementById('campos-detalhe-custos');
+    const btnDet = document.getElementById('btn-toggle-detalhe');
+    if(painel) painel.classList.add('hidden');
+    if(btnDet) btnDet.innerText = '▶ Detalhar Custos (MO, MAT, EQ, Outros)';
+
     document.getElementById('task-fornecedor').value = '';
-    const el = document.getElementById('task-inicio'); el.value=''; updateInicioStyle(el);
+
+    // Limpa os membros
+    const contMembros = document.getElementById('membros-equipe-container');
+    if(contMembros){ contMembros.innerHTML = ''; contMembros.classList.add('hidden'); }
+
+    const el = document.getElementById('task-inicio');
+    el.value = '';
+    updateInicioStyle(el);
     document.getElementById('task-fim').value        = '';
     document.getElementById('task-otimista').value   = '0';
     document.getElementById('task-pessimista').value = '0';
     document.getElementById('task-dep').value        = '';
     calcPERT();
+
+    // Limpa alertas
+    const alertDiaria = document.getElementById('alerta-diaria-form');
+    if(alertDiaria){ alertDiaria.innerHTML=''; alertDiaria.classList.add('hidden'); }
+    const alertSob = document.getElementById('alerta-sobreposicao');
+    if(alertSob){ alertSob.innerHTML=''; alertSob.classList.add('hidden'); }
+
     const btnA = document.getElementById('task-atencao');
-    btnA.dataset.active = 'false'; btnA.classList.remove('bg-red-50','text-arcco-red','border-red-500'); btnA.classList.add('text-gray-300','border-gray-600');
+    btnA.dataset.active = 'false';
+    btnA.classList.remove('bg-red-50','text-arcco-red','border-red-500');
+    btnA.classList.add('text-gray-300','border-gray-600');
+
     const btn = document.getElementById('btn-save-task');
-    btn.innerText = 'SALVAR NO CRONOGRAMA'; btn.classList.remove('bg-arcco-black','text-white'); btn.classList.add('bg-arcco-lime','text-arcco-black');
+    btn.innerText = 'SALVAR NO CRONOGRAMA';
+    btn.classList.remove('bg-arcco-black','text-white');
+    btn.classList.add('bg-arcco-lime','text-arcco-black');
     document.getElementById('btn-cancel-edit').classList.add('hidden');
+
     if(STATE.currentObraId) renderObraDetail(STATE.currentObraId);
+};
+
+// Mantido por compatibilidade (setTipoContratacao não é mais usado)
+export const setTipoContratacao = (tipo) => {
+    // No novo modelo não há mais tipos — mantido para não quebrar imports
+    calcTotalTask();
 };
 
 export const toggleTaskStatus = async (fId, tId) => {
@@ -578,7 +1059,7 @@ export const toggleAtencao = (btn) => {
     else { btn.classList.remove('bg-red-50','text-arcco-red','border-red-500'); btn.classList.add('text-gray-300','border-gray-600'); }
 };
 
-// ── Módulos ───────────────────────────────────────────────────
+// ── Módulos EAP ───────────────────────────────────────────────
 export const saveModuloObra = async () => {
     const ind  = document.getElementById('mod-indice').value.trim();
     const nome = document.getElementById('mod-nome').value.trim();
