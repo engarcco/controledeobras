@@ -32,22 +32,23 @@ export const toggleMobileMenu = () => {
         : '<i data-lucide="x" class="w-6 h-6"></i>';
     lucide.createIcons();
 };
-window.toggleMobileMenu = toggleMobileMenu;
 
 export const showMasterSection = (sec) => {
-    // Adicionado 'orcamentos' na lista de seções a esconder
+    // Adicionado 'orcamentos' na lista de seções
     ['dash','obra-detail','fornecedores','clientes','composicoes', 'orcamentos'].forEach(s => {
         document.getElementById(`master-section-${s}`)?.classList.add('hidden');
     });
 
     document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active','border-arcco-lime','text-white'));
     
-    // Mapeamento atualizado com 'orcamentos'
+    // Mapeamento atualizado para a navegação
     const map = {dash:'Obras', orcamentos:'Orçamentos', composicoes:'Composições', fornecedores:'Equipes', clientes:'Clientes'};
     const lbl = map[sec];
     
     Array.from(document.querySelectorAll('.nav-btn')).find(b=>b.innerText.trim()===lbl)?.classList.add('active','border-arcco-lime','text-white');
 
+    // Navegação Mobile (Bottom e Dropdown)
+    document.querySelectorAll('.mob-nav-btn').forEach(btn => btn.classList.remove('bg-gray-800','text-white'));
     document.querySelectorAll('.mob-bottom-btn').forEach(btn => {
         btn.classList.remove('text-arcco-lime');
         btn.classList.add('text-gray-500');
@@ -62,12 +63,6 @@ export const showMasterSection = (sec) => {
     document.getElementById(`master-section-${sec}`)?.classList.remove('hidden');
     lucide.createIcons();
 };
-window.showMasterSection = showMasterSection;
-
-export const pontoStatusBadge = (ci) => {
-    if(ci.statusMaster==='aprovado') return `<span class="text-[8px] font-bold uppercase px-2 py-0.5 rounded badge-pago flex items-center gap-1"><i data-lucide="shield-check" class="w-2.5 h-2.5"></i> Aprovado</span>`;
-    return `<span class="text-[8px] font-bold uppercase px-2 py-0.5 rounded badge-pendente flex items-center gap-1"><i data-lucide="clock" class="w-2.5 h-2.5"></i> Pendente</span>`;
-};
 
 export const switchObraTab = (tab) => {
     ['cronograma','curvas','medicoes','ponto','compras'].forEach(t => {
@@ -80,4 +75,8 @@ export const switchObraTab = (tab) => {
     document.getElementById(`obra-tab-${tab}`)?.classList.remove('hidden');
     lucide.createIcons();
 };
+
+// Expondo para o escopo global
+window.toggleMobileMenu = toggleMobileMenu;
+window.showMasterSection = showMasterSection;
 window.switchObraTab = switchObraTab;
