@@ -1,87 +1,87 @@
 // ============================================================
-// main.js — Ponto de entrada do ARCCO HUB
+// main.js — Ponto de entrada ÚNICO do ARCCO HUB
 // ============================================================
-
-import { STATE }    from './config.js';
-import { showToast, openModal, closeModal,
-         toggleMobileMenu, showMasterSection,
-         pontoStatusBadge, switchObraTab, switchFornTab } from './ui.js';
+import { STATE } from './config.js';
 import { setupAuth } from './auth.js';
+import { 
+    showToast, openModal, closeModal, 
+    toggleMobileMenu, showMasterSection, 
+    pontoStatusBadge, switchObraTab, switchFornTab 
+} from './ui.js';
 
-// Importações ajustadas para o novo obras.js
+// Importações de Obras
 import { 
     renderMasterObrasGrid, openObraDetail, duplicarObra, 
-    deleteObraCompleta, renderObraDetail,
-    updateTeamSelection, calcBudgetValidation
+    deleteObraCompleta, renderObraDetail, saveNovaObra,
+    updateTeamSelection, calcBudgetValidation 
 } from './obras.js';
 
-import { renderMedicoes, openModalNovaMedicao, calcMedicaoTotal,
-         saveMedicao, toggleStatusAdm, deleteMedicao,
-         openModalNovaDiaria, calcDiaria, saveDiaria, deleteDiaria } from './medicoes.js';
+// Importações de Medições
+import { 
+    renderMedicoes, openModalNovaMedicao, calcMedicaoTotal, 
+    saveMedicao, toggleStatusAdm, deleteMedicao, 
+    openModalNovaDiaria, calcDiaria, saveDiaria, deleteDiaria 
+} from './medicoes.js';
 
-import { switchCurvaTab, renderCurvaS,
-         renderCurvaABC, renderOrcamentoAnalitico } from './curvas.js';
+// Importações de Curvas e Gráficos
+import { switchCurvaTab, renderCurvaS, renderCurvaABC, renderOrcamentoAnalitico } from './curvas.js';
 
-import { renderMasterPonto, aprovarCheckin, deleteCheckin,
-         renderFornPontoLider, liderAprovarCheckin,
-         abrirCheckin, abrirCheckinObra, _toggleCheckinObraRow,
-         saveCheckin as _saveCheckinCore } from './ponto.js';
+// Importações de Ponto Eletrônico
+import { 
+    renderMasterPonto, aprovarCheckin, deleteCheckin, 
+    renderFornPontoLider, liderAprovarCheckin, 
+    abrirCheckin, abrirCheckinObra, _toggleCheckinObraRow, 
+    saveCheckin as _saveCheckinCore 
+} from './ponto.js';
 
-import { renderFornAdmin, toggleLiderSelect,
-         openModalManualForn, editForn, saveManualForn,
-         submitRegForn, deleteForn, populaSelectManualForn } from './fornecedores.js';
+// Importações de Fornecedores/Equipes
+import { 
+    renderFornAdmin, toggleLiderSelect, openModalManualForn, 
+    editForn, saveManualForn, submitRegForn, 
+    deleteForn, populaSelectManualForn 
+} from './fornecedores.js';
 
-import { renderClientsList, openModalNovoCliente, editClient,
-         saveNovoCliente, deleteClient, populaSelectClientes } from './clientes.js';
+// Importações de Clientes
+import { 
+    renderClientsList, openModalNovoCliente, editClient, 
+    saveNovoCliente, deleteClient, populaSelectClientes 
+} from './clientes.js';
 
-import { openModalGestores, renderListaGestores,
-         saveNovoGestor, deleteGestor } from './gestores.js';
+// Importações de Gestores e Composições
+import { openModalGestores, renderListaGestores, saveNovoGestor, deleteGestor } from './gestores.js';
+import { 
+    renderComposicoesList, openModalComposicao, editComposicao, 
+    saveComposicao, deleteComposicao, populaSelectComposicoes, aplicarComposicao 
+} from './composicoes.js';
 
-import { renderComposicoesList, openModalComposicao, editComposicao,
-         saveComposicao, deleteComposicao,
-         populaSelectComposicoes, aplicarComposicao } from './composicoes.js';
-
+// Portais e Offline
 import { renderFornDash, renderFornChecklist, fornToggleStatus } from './portal-forn.js';
-import { renderMembroDash }    from './portal-membro.js';
-import { renderClienteDash }   from './portal-cliente.js';
+import { renderMembroDash } from './portal-membro.js';
+import { renderClienteDash } from './portal-cliente.js';
 import { salvarOffline, sincronizarDados, initOfflineListeners } from './offline.js';
 
+// OBJETO GLOBAL APP - O que o HTML enxerga
 window.APP = {
-    openModal,
-    closeModal,
-    showToast,
-    openObraDetail,
-    duplicarObra,
-    deleteObraCompleta,
-    updateTeamSelection, // Função nova
-    calcBudgetValidation, // Função nova
+    // UI e Geral
+    showToast, openModal, closeModal, showMasterSection,
     
-    // As funções abaixo precisam ser reintegradas no obras.js caso você as use no HTML
-    // saveTaskToObra, 
-    // deleteTask,
+    // Obras
+    renderMasterObrasGrid, renderObraDetail, openObraDetail, 
+    saveNovaObra, duplicarObra, deleteObraCompleta,
+    updateTeamSelection, calcBudgetValidation,
 
-    openModalNovaMedicao,
-    calcMedicaoTotal,
-    saveMedicao,
-    toggleStatusAdm,
-    deleteMedicao,
-    openModalNovaDiaria,
-    calcDiaria,
-    saveDiaria,
-    deleteDiaria,
-    switchCurvaTab,
-    renderCurvaS,
-    renderCurvaABC,
-    renderOrcamentoAnalitico,
-    renderMasterPonto,
-    aprovarCheckin,
-    deleteCheckin,
-    renderFornPontoLider,
-    liderAprovarCheckin,
-    switchFornTab,
-    abrirCheckin,
-    abrirCheckinObra,
-    _toggleCheckinObraRow,
+    // Medições
+    renderMedicoes, openModalNovaMedicao, calcMedicaoTotal,
+    saveMedicao, toggleStatusAdm, deleteMedicao,
+    openModalNovaDiaria, calcDiaria, saveDiaria, deleteDiaria,
+
+    // Curvas e Ponto
+    switchCurvaTab, renderCurvaS, renderCurvaABC, renderOrcamentoAnalitico,
+    renderMasterPonto, aprovarCheckin, deleteCheckin,
+    renderFornPontoLider, liderAprovarCheckin,
+    abrirCheckin, abrirCheckinObra, _toggleCheckinObraRow,
+    
+    // Lógica de Ponto Offline/Online
     saveCheckin: async function (dados, isSync = false) {
         if (!navigator.onLine && !isSync) {
             salvarOffline(dados);
@@ -89,59 +89,46 @@ window.APP = {
         }
         return _saveCheckinCore(dados);
     },
-    _saveCheckinOnline: _saveCheckinCore,
-    renderFornDash,
-    renderFornChecklist,
-    fornToggleStatus,
-    renderMembroDash,
-    renderClienteDash,
-    openModalNovoCliente,
-    editClient,
-    saveNovoCliente,
-    deleteClient,
-    openModalManualForn,
-    editForn,
-    saveManualForn,
-    submitRegForn,
-    deleteForn,
-    toggleLiderSelect,
-    openModalGestores,
-    saveNovoGestor,
-    deleteGestor,
-    openModalComposicao,
-    editComposicao,
-    saveComposicao,
-    deleteComposicao,
-    aplicarComposicao,
+
+    // Clientes e Fornecedores
+    renderClientsList, openModalNovoCliente, editClient, saveNovoCliente, deleteClient, populaSelectClientes,
+    renderFornAdmin, openModalManualForn, editForn, saveManualForn, deleteForn, 
+    toggleLiderSelect, populaSelectManualForn, submitRegForn,
+
+    // Gestores e Composições
+    openModalGestores, renderListaGestores, saveNovoGestor, deleteGestor,
+    renderComposicoesList, openModalComposicao, editComposicao, saveComposicao, 
+    deleteComposicao, populaSelectComposicoes, aplicarComposicao,
+
+    // Portais
+    renderFornDash, renderFornChecklist, fornToggleStatus,
+    renderMembroDash, renderClienteDash
 };
 
-window.toggleMobileMenu  = toggleMobileMenu;
+// Funções que ficam soltas no Windows para botões simples
+window.toggleMobileMenu = toggleMobileMenu;
 window.showMasterSection = showMasterSection;
-window.switchObraTab     = switchObraTab;
+window.switchObraTab = switchObraTab;
+window.switchFornTab = switchFornTab;
 
-window.APP.renderMasterObrasGrid   = renderMasterObrasGrid;
-window.APP.renderObraDetail        = renderObraDetail;
-window.APP.renderFornAdmin         = renderFornAdmin;
-window.APP.renderClientsList       = renderClientsList;
-window.APP.renderFornDash          = renderFornDash;
-window.APP.renderMembroDash        = renderMembroDash;
-window.APP.renderClienteDash       = renderClienteDash;
-window.APP.populaSelectClientes    = populaSelectClientes;
-window.APP.populaSelectManualForn  = populaSelectManualForn;
-window.APP.populaSelectComposicoes = populaSelectComposicoes;
-window.APP.renderComposicoesList   = renderComposicoesList;
-window.APP.renderListaGestores     = renderListaGestores;
+// INICIALIZAÇÃO
+document.addEventListener('DOMContentLoaded', () => {
+    setupAuth();
+    initOfflineListeners();
+    
+    if (window.lucide) {
+        window.lucide.createIcons();
+    }
+});
 
-setupAuth();
-initOfflineListeners();
-
+// SERVICE WORKER (PWA / Offline)
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         navigator.serviceWorker.register('/sw.js')
             .then(reg => {
-                console.log('Sistema Offline Pronto');
-                sincronizarDados();
+                console.log('Arcco Hub: Modo Offline Ativado');
+                sconizarDados();
             })
-            .catch(err => console.log('Erro no Service Worker', err));
+            .catch(err => console.log('Erro Service Worker:', err));
     });
 }
