@@ -315,15 +315,27 @@
                     </div>
                 </div>
 
-                <!-- Formulário de Tarefa -->
+                <!-- ══════════════════════════════════════════════════
+                     FORMULÁRIO DE ADICIONAR / EDITAR SERVIÇO
+                     Correção 2: Custo Total + BDI simplificado
+                     Correção 3: Equipe com subordinados (checkboxes)
+                     Correção 4: Alerta de custo de diárias vs MO
+                     Correção 5: Datas em destaque + alerta sobreposição
+                     ══════════════════════════════════════════════════ -->
                 <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                     <div class="bg-arcco-black border-b border-gray-800 p-4 flex justify-between items-center">
-                        <h4 class="font-montserrat font-bold text-sm uppercase text-white tracking-wide"><i data-lucide="settings-2" class="inline w-4 h-4 mr-2 text-arcco-lime"></i> Adicionar/Editar Serviço</h4>
-                        <button id="task-atencao" onclick="APP.toggleAtencao(this)" data-active="false" class="text-[10px] font-bold uppercase px-3 py-1.5 border border-gray-600 rounded text-gray-300 hover:bg-gray-800 flex items-center gap-1">
+                        <h4 class="font-montserrat font-bold text-sm uppercase text-white tracking-wide">
+                            <i data-lucide="settings-2" class="inline w-4 h-4 mr-2 text-arcco-lime"></i> Adicionar/Editar Serviço
+                        </h4>
+                        <!-- Botão de marcar como crítico -->
+                        <button id="task-atencao" onclick="APP.toggleAtencao(this)" data-active="false"
+                            class="text-[10px] font-bold uppercase px-3 py-1.5 border border-gray-600 rounded text-gray-300 hover:bg-gray-800 flex items-center gap-1">
                             <i data-lucide="alert-triangle" class="w-3 h-3"></i> Item Crítico
                         </button>
                     </div>
                     <div class="p-6 space-y-5">
+
+                        <!-- Linha 1: Módulo + Nome do serviço -->
                         <div class="grid grid-cols-1 md:grid-cols-12 gap-5 items-end">
                             <div class="md:col-span-4">
                                 <label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Módulo EAP</label>
@@ -331,8 +343,10 @@
                             </div>
                             <div class="md:col-span-8">
                                 <div class="flex justify-between items-end mb-1">
-                                    <label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Descrição da Tarefa</label>
-                                    <select id="task-comp-select" onchange="APP.aplicarComposicao()" class="text-[9px] font-bold uppercase bg-arcco-lime/20 text-arcco-black border border-arcco-lime/50 rounded px-2 py-0.5 outline-none cursor-pointer max-w-[150px] truncate mb-0.5">
+                                    <label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Descrição do Serviço</label>
+                                    <!-- Importar composição padrão -->
+                                    <select id="task-comp-select" onchange="APP.aplicarComposicao()"
+                                        class="text-[9px] font-bold uppercase bg-arcco-lime/20 text-arcco-black border border-arcco-lime/50 rounded px-2 py-0.5 outline-none cursor-pointer max-w-[150px] truncate mb-0.5">
                                         <option value="">+ IMPORTAR PADRÃO</option>
                                     </select>
                                 </div>
@@ -340,147 +354,210 @@
                             </div>
                         </div>
 
-                        <!-- TIPO DE CONTRATAÇÃO: Empreita ou Detalhado -->
-                        <div class="flex items-center gap-3 bg-gray-50 p-3 rounded-lg border border-gray-200">
-                            <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Tipo de Contratação:</span>
-                            <div class="flex gap-2">
-                                <button id="btn-tipo-detalhado" onclick="APP.setTipoContratacao('detalhado')" class="px-4 py-1.5 text-[10px] font-bold uppercase rounded border transition-colors bg-arcco-black text-white border-arcco-black">
-                                    Custos Detalhados
-                                </button>
-                                <button id="btn-tipo-empreita" onclick="APP.setTipoContratacao('empreita')" class="px-4 py-1.5 text-[10px] font-bold uppercase rounded border transition-colors bg-white text-gray-500 border-gray-300 hover:border-arcco-black hover:text-arcco-black">
-                                    <i data-lucide="handshake" class="inline w-3 h-3 mr-1"></i>Empreita (Valor Cheio)
-                                </button>
-                            </div>
-                            <input type="hidden" id="task-tipo-contratacao" value="detalhado">
-                        </div>
+                        <!-- ══ CORREÇÃO 2: Painel de valores simplificado ══ -->
+                        <div class="bg-gray-50 border border-gray-200 rounded-xl p-5 space-y-4">
+                            <p class="text-[9px] font-bold text-gray-500 uppercase tracking-widest border-b border-gray-200 pb-2">
+                                💰 Valores do Serviço
+                            </p>
 
-                        <!-- MODO DETALHADO (padrão) -->
-                        <div id="campos-detalhado" class="bg-gray-50 p-4 rounded-lg border border-gray-200 space-y-4">
-                            <div class="grid grid-cols-1 md:grid-cols-4 gap-5">
+                            <!-- Custo Total + BDI lado a lado -->
+                            <div class="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label class="text-[10px] font-bold text-gray-600 uppercase tracking-wider flex items-center gap-1"><i data-lucide="users" class="w-3 h-3 text-gray-400"></i> Mão de Obra (R$)</label>
-                                    <input type="number" id="task-mo" placeholder="0.00" class="mt-1" oninput="APP.calcTotalTask()">
-                                </div>
-                                <div>
-                                    <label class="text-[10px] font-bold text-gray-600 uppercase tracking-wider flex items-center gap-1"><i data-lucide="package" class="w-3 h-3 text-gray-400"></i> Material (R$)</label>
-                                    <input type="number" id="task-mat" placeholder="0.00" class="mt-1" oninput="APP.calcTotalTask()">
-                                </div>
-                                <div>
-                                    <label class="text-[10px] font-bold text-gray-600 uppercase tracking-wider flex items-center gap-1"><i data-lucide="truck" class="w-3 h-3 text-gray-400"></i> Equipam. (R$)</label>
-                                    <input type="number" id="task-eq" placeholder="0.00" class="mt-1" oninput="APP.calcTotalTask()">
-                                </div>
-                                <div>
-                                    <label class="text-[10px] font-bold text-gray-600 uppercase tracking-wider flex items-center gap-1"><i data-lucide="plus-circle" class="w-3 h-3 text-gray-400"></i> Outros (R$)</label>
-                                    <input type="number" id="task-ou" placeholder="0.00" class="mt-1" oninput="APP.calcTotalTask()">
-                                </div>
-                            </div>
-                            <div class="border-t border-gray-200 pt-4 flex flex-col md:flex-row justify-between items-center gap-4">
-                                <div class="w-full md:w-1/3 bg-arcco-lime/10 p-2.5 rounded border border-arcco-lime/40 flex items-center gap-3">
-                                    <select id="task-taxa-tipo" class="text-[10px] font-bold text-gray-700 uppercase bg-transparent outline-none cursor-pointer p-0 border-none flex-1" onchange="APP.calcTotalTask()">
-                                        <option value="BDI">BDI (%)</option>
-                                        <option value="ADM">Taxa ADM (%)</option>
-                                    </select>
-                                    <input type="number" id="task-taxa-pct" placeholder="0" class="w-24 border-gray-300 font-bold px-2 py-1.5" oninput="APP.calcTotalTask()">
-                                </div>
-                                <div class="flex flex-col sm:flex-row justify-end items-end sm:items-center gap-4 w-full md:w-auto">
-                                    <div class="text-right">
-                                        <span class="text-[10px] font-bold text-gray-400 uppercase">Custo Direto:</span>
-                                        <span id="task-valor-display" class="font-montserrat font-bold text-sm text-gray-600 ml-1">R$ 0,00</span>
-                                    </div>
-                                    <div class="text-right">
-                                        <span class="text-[10px] font-bold text-arcco-black uppercase bg-arcco-lime px-2 py-0.5 rounded mr-1">Preço Venda:</span>
-                                        <span id="task-venda-display" class="font-montserrat font-bold text-lg text-arcco-black">R$ 0,00</span>
-                                    </div>
-                                    <input type="hidden" id="task-valor" value="0">
-                                    <input type="hidden" id="task-valor-venda" value="0">
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- MODO EMPREITA -->
-                        <div id="campos-empreita" class="hidden bg-orange-50 p-5 rounded-lg border-2 border-orange-300 space-y-4">
-                            <div class="flex items-center gap-2 mb-1">
-                                <i data-lucide="handshake" class="w-4 h-4 text-arcco-orange"></i>
-                                <span class="text-xs font-bold text-arcco-orange uppercase tracking-wide">Serviço Contratado por Empreita</span>
-                            </div>
-                            <p class="text-[10px] font-bold text-gray-600 uppercase">Valor único já incluindo mão de obra, material e demais custos do contratado.</p>
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                <div>
-                                    <label class="text-[10px] font-bold text-arcco-orange uppercase tracking-wider">Valor de Empreita (R$)</label>
-                                    <input type="number" id="task-empreita" placeholder="0.00" class="mt-1 font-bold text-arcco-black border-orange-300 focus:border-orange-500" oninput="APP.calcTotalTask()">
-                                </div>
-                                <div>
-                                    <label class="text-[10px] font-bold text-gray-600 uppercase tracking-wider flex items-center gap-1">
-                                        <i data-lucide="percent" class="w-3 h-3 text-gray-400"></i> Margem Arcco / BDI (%)
-                                        <span class="text-[8px] text-gray-400 normal-case font-normal ml-1">(opcional)</span>
+                                    <label class="text-[10px] font-bold text-gray-600 uppercase tracking-wider block mb-1">
+                                        Custo Total (R$)
                                     </label>
-                                    <input type="number" id="task-empreita-bdi" placeholder="0" class="mt-1 font-bold border-orange-200" oninput="APP.calcTotalTask()">
+                                    <input type="number" id="task-custo-total" step="0.01" min="0"
+                                        placeholder="0,00"
+                                        class="font-bold text-arcco-black"
+                                        oninput="APP.calcTotalTask()">
+                                    <p class="text-[8px] text-gray-400 font-bold uppercase mt-1">Valor que vem do seu orçamento</p>
+                                </div>
+                                <div>
+                                    <label class="text-[10px] font-bold text-gray-600 uppercase tracking-wider block mb-1">
+                                        BDI (%)
+                                    </label>
+                                    <input type="number" id="task-bdi" step="0.01" min="0"
+                                        placeholder="0"
+                                        class="font-bold text-arcco-black"
+                                        oninput="APP.calcTotalTask()">
+                                    <p class="text-[8px] text-gray-400 font-bold uppercase mt-1">Taxa de lucro/despesas</p>
                                 </div>
                             </div>
-                            <div class="bg-white rounded-lg p-3 border border-orange-200 flex flex-col sm:flex-row justify-between items-center gap-3">
-                                <div class="text-right">
-                                    <span class="text-[10px] font-bold text-gray-400 uppercase">Custo Empreita:</span>
-                                    <span id="task-empreita-custo-display" class="font-montserrat font-bold text-sm text-gray-600 ml-1">R$ 0,00</span>
+
+                            <!-- Preço de Venda calculado automaticamente -->
+                            <div class="bg-arcco-black rounded-lg p-4 flex justify-between items-center">
+                                <div>
+                                    <p class="text-[9px] font-bold text-gray-400 uppercase">Preço de Venda</p>
+                                    <p class="text-[8px] text-gray-500 uppercase mt-0.5">Custo Total × (1 + BDI%)</p>
                                 </div>
-                                <div class="text-right">
-                                    <span class="text-[10px] font-bold text-arcco-black uppercase bg-arcco-lime px-2 py-0.5 rounded mr-1">Preço de Venda:</span>
-                                    <span id="task-empreita-venda-display" class="font-montserrat font-bold text-lg text-arcco-black">R$ 0,00</span>
+                                <p id="task-valor-venda-display" class="font-montserrat font-black-italic text-2xl text-arcco-lime">R$ 0,00</p>
+                            </div>
+
+                            <!-- Campos ocultos que são lidos pelo JS ao salvar -->
+                            <input type="hidden" id="task-valor">
+                            <input type="hidden" id="task-valor-venda">
+                            <!-- Mantidos por compatibilidade com composições -->
+                            <input type="hidden" id="task-taxa-tipo" value="BDI">
+                            <input type="hidden" id="task-taxa-pct" value="0">
+
+                            <!-- Toggle para detalhar custos (MO/MAT/EQ/OUTROS) -->
+                            <button type="button" id="btn-toggle-detalhe"
+                                onclick="APP.toggleDetalhamento()"
+                                class="w-full text-left text-[9px] font-bold text-blue-600 uppercase hover:text-arcco-black transition-colors flex items-center gap-1 pt-1 border-t border-gray-200">
+                                <i data-lucide="plus-circle" class="w-3 h-3"></i>
+                                Detalhar Custos: MO / Material / Equipamento / Outros
+                            </button>
+
+                            <!-- Painel de detalhamento — oculto por padrão -->
+                            <div id="campos-detalhe-custos" class="hidden grid grid-cols-2 md:grid-cols-4 gap-3 bg-white p-4 rounded-lg border border-dashed border-gray-300">
+                                <div>
+                                    <label class="text-[9px] font-bold text-gray-500 uppercase flex items-center gap-1 mb-1">
+                                        <i data-lucide="users" class="w-3 h-3 text-gray-400"></i> Mão de Obra
+                                    </label>
+                                    <input type="number" id="task-mo" step="0.01" min="0" placeholder="0,00"
+                                        oninput="APP.calcTotalTask()">
+                                </div>
+                                <div>
+                                    <label class="text-[9px] font-bold text-gray-500 uppercase flex items-center gap-1 mb-1">
+                                        <i data-lucide="package" class="w-3 h-3 text-gray-400"></i> Material
+                                    </label>
+                                    <input type="number" id="task-mat" step="0.01" min="0" placeholder="0,00">
+                                </div>
+                                <div>
+                                    <label class="text-[9px] font-bold text-gray-500 uppercase flex items-center gap-1 mb-1">
+                                        <i data-lucide="truck" class="w-3 h-3 text-gray-400"></i> Equipamento
+                                    </label>
+                                    <input type="number" id="task-eq" step="0.01" min="0" placeholder="0,00">
+                                </div>
+                                <div>
+                                    <label class="text-[9px] font-bold text-gray-500 uppercase flex items-center gap-1 mb-1">
+                                        <i data-lucide="plus-circle" class="w-3 h-3 text-gray-400"></i> Outros
+                                    </label>
+                                    <input type="number" id="task-ou" step="0.01" min="0" placeholder="0,00">
                                 </div>
                             </div>
                         </div>
 
-                        <div class="grid grid-cols-1 md:grid-cols-12 gap-5 border-t border-gray-100 pt-5">
-                            <div class="md:col-span-4">
-                                <label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Responsável (Líder)</label>
-                                <select id="task-fornecedor" class="mt-1"></select>
+                        <!-- ══ CORREÇÃO 3: Equipe — Líder + Subordinados ══ -->
+                        <div class="bg-gray-50 border border-gray-200 rounded-xl p-5 space-y-3">
+                            <p class="text-[9px] font-bold text-gray-500 uppercase tracking-widest border-b border-gray-200 pb-2">
+                                👷 Equipe Responsável
+                            </p>
+                            <div>
+                                <label class="text-[10px] font-bold text-gray-600 uppercase tracking-wider block mb-1">
+                                    Líder de Equipe *
+                                </label>
+                                <!-- Ao trocar, carrega os subordinados abaixo automaticamente -->
+                                <select id="task-fornecedor"
+                                    class="font-bold text-arcco-black"
+                                    onchange="APP.onChangeFornecedor()">
+                                    <option value="">(SELECIONE A EQUIPE)</option>
+                                </select>
                             </div>
-                            <div class="md:col-span-4">
-                                <label class="text-[10px] font-bold text-arcco-orange uppercase tracking-wider flex items-center gap-1"><i data-lucide="link" class="w-3 h-3"></i> Depende de:</label>
-                                <select id="task-dep" class="mt-1 border-orange-200 focus:border-orange-500 bg-orange-50" onchange="APP.handleDepChange()"><option value="">NENHUMA (INÍCIO LIVRE)</option></select>
-                            </div>
-                            <div class="md:col-span-2">
-                                <label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Data Início</label>
-                                <input type="date" id="task-inicio" class="mt-1" onchange="APP.updateInicioStyle(this)">
-                            </div>
-                            <div class="md:col-span-2">
-                                <label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Data Limite</label>
-                                <input type="date" id="task-fim" class="mt-1">
-                            </div>
-                            <!-- PERT -->
-                            <div class="md:col-span-12 bg-blue-50/50 p-4 rounded-lg border border-blue-100 flex flex-col md:flex-row gap-5 items-start md:items-center">
-                                <div class="shrink-0 text-blue-800 flex items-center gap-2">
-                                    <i data-lucide="network" class="w-4 h-4"></i>
-                                    <span class="text-[10px] font-bold uppercase tracking-widest">Análise PERT</span>
+
+                            <!-- Subordinados aparecem aqui após selecionar o líder -->
+                            <div id="membros-equipe-container" class="hidden"></div>
+
+                            <!-- Alerta de custo de diárias vs MO (Correção 4) -->
+                            <div id="alerta-diaria-form" class="hidden"></div>
+                        </div>
+
+                        <!-- ══ CORREÇÃO 5: Datas grandes e claras ══ -->
+                        <div class="bg-gray-50 border border-gray-200 rounded-xl p-5 space-y-4">
+                            <p class="text-[9px] font-bold text-gray-500 uppercase tracking-widest border-b border-gray-200 pb-2">
+                                📅 Datas do Serviço
+                            </p>
+
+                            <!-- Início e Fim lado a lado, campos grandes -->
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="text-[10px] font-bold text-blue-600 uppercase tracking-wider block mb-1 flex items-center gap-1">
+                                        <i data-lucide="play-circle" class="w-3.5 h-3.5"></i> Data de Início
+                                    </label>
+                                    <input type="date" id="task-inicio"
+                                        class="font-bold text-blue-800 bg-blue-50 border-blue-300"
+                                        onchange="APP.updateInicioStyle(this); APP.calcPERT()">
                                 </div>
-                                <div class="flex-1 grid grid-cols-2 gap-4 w-full">
-                                    <div>
-                                        <label class="text-[9px] font-bold text-green-700 uppercase">Otimista (O)</label>
-                                        <select id="task-otimista" class="mt-1 text-xs border-green-200 bg-green-50 text-green-800 font-bold" onchange="APP.calcPERT()">
-                                            <option value="0">Padrão</option>
-                                            <option value="-1">-1 Dia</option><option value="-2">-2 Dias</option>
-                                            <option value="-3">-3 Dias</option><option value="-4">-4 Dias</option><option value="-5">-5 Dias</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label class="text-[9px] font-bold text-red-700 uppercase">Pessimista (P)</label>
-                                        <select id="task-pessimista" class="mt-1 text-xs border-red-200 bg-red-50 text-red-800 font-bold" onchange="APP.calcPERT()">
-                                            <option value="0">Padrão</option>
-                                            <option value="1">+1 Dia</option><option value="2">+2 Dias</option><option value="3">+3 Dias</option>
-                                            <option value="4">+4 Dias</option><option value="5">+5 Dias</option><option value="7">+7 Dias</option><option value="10">+10 Dias</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="w-full md:w-auto text-right bg-white p-2.5 rounded shadow-sm border border-blue-100 min-w-[150px]">
-                                    <span class="text-[9px] font-bold text-gray-500 uppercase block">Tempo Esperado (TE)</span>
-                                    <span id="pert-display" class="font-montserrat font-bold text-sm text-blue-700">---</span>
+                                <div>
+                                    <label class="text-[10px] font-bold text-gray-700 uppercase tracking-wider block mb-1 flex items-center gap-1">
+                                        <i data-lucide="flag" class="w-3.5 h-3.5"></i> Data de Fim (Previsto)
+                                    </label>
+                                    <input type="date" id="task-fim"
+                                        class="font-bold text-arcco-black"
+                                        onchange="APP.calcPERT()">
                                 </div>
                             </div>
 
-                            <div class="md:col-span-12 flex justify-end gap-3 pt-2">
-                                <button id="btn-cancel-edit" onclick="APP.resetTaskForm()" class="hidden text-xs font-bold uppercase text-gray-400 hover:text-arcco-black px-4 py-2">Cancelar</button>
-                                <button id="btn-save-task" onclick="APP.saveTaskToObra()" class="bg-arcco-lime text-arcco-black font-montserrat font-bold text-xs uppercase px-8 py-3.5 rounded hover:brightness-95 shadow-md">Salvar no Cronograma</button>
+                            <!-- Data PERT em destaque -->
+                            <div class="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                                <div class="flex items-center gap-2 mb-1">
+                                    <i data-lucide="trending-up" class="w-4 h-4 text-purple-600"></i>
+                                    <span class="text-[9px] font-bold text-purple-600 uppercase tracking-widest">Data PERT — Prazo Probabilístico</span>
+                                </div>
+                                <p id="pert-display" class="font-montserrat font-bold text-base text-purple-800">---</p>
+                                <p class="text-[8px] text-purple-400 uppercase font-bold mt-1">Calculado com otimista + mais provável + pessimista</p>
                             </div>
+
+                            <!-- Ajustes PERT: Otimista e Pessimista -->
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="text-[9px] font-bold text-green-700 uppercase block mb-1">Cenário Otimista (dias a menos)</label>
+                                    <select id="task-otimista"
+                                        class="text-xs border-green-200 bg-green-50 text-green-800 font-bold"
+                                        onchange="APP.calcPERT()">
+                                        <option value="0">Padrão (sem ajuste)</option>
+                                        <option value="-1">-1 Dia</option>
+                                        <option value="-2">-2 Dias</option>
+                                        <option value="-3">-3 Dias</option>
+                                        <option value="-4">-4 Dias</option>
+                                        <option value="-5">-5 Dias</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="text-[9px] font-bold text-red-700 uppercase block mb-1">Cenário Pessimista (dias a mais)</label>
+                                    <select id="task-pessimista"
+                                        class="text-xs border-red-200 bg-red-50 text-red-800 font-bold"
+                                        onchange="APP.calcPERT()">
+                                        <option value="0">Padrão (sem ajuste)</option>
+                                        <option value="1">+1 Dia</option>
+                                        <option value="2">+2 Dias</option>
+                                        <option value="3">+3 Dias</option>
+                                        <option value="4">+4 Dias</option>
+                                        <option value="5">+5 Dias</option>
+                                        <option value="7">+7 Dias</option>
+                                        <option value="10">+10 Dias</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Alerta de sobreposição de datas com outro serviço -->
+                            <div id="alerta-sobreposicao" class="hidden"></div>
                         </div>
+
+                        <!-- Dependência (aguarda outro serviço terminar) -->
+                        <div>
+                            <label class="text-[10px] font-bold text-arcco-orange uppercase tracking-wider flex items-center gap-1 mb-1">
+                                <i data-lucide="link" class="w-3 h-3"></i> Depende de (aguarda outro serviço):
+                            </label>
+                            <select id="task-dep"
+                                class="border-orange-200 focus:border-orange-500 bg-orange-50 font-bold text-arcco-black"
+                                onchange="APP.handleDepChange()">
+                                <option value="">NENHUMA (INÍCIO LIVRE)</option>
+                            </select>
+                        </div>
+
+                        <!-- Botões Salvar / Cancelar -->
+                        <div class="flex justify-end gap-3 pt-2 border-t border-gray-100">
+                            <button id="btn-cancel-edit" onclick="APP.resetTaskForm()"
+                                class="hidden text-xs font-bold uppercase text-gray-400 hover:text-arcco-black px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100">
+                                Cancelar Edição
+                            </button>
+                            <button id="btn-save-task" onclick="APP.saveTaskToObra()"
+                                class="bg-arcco-lime text-arcco-black font-montserrat font-bold text-xs uppercase px-8 py-3.5 rounded-lg hover:brightness-95 shadow-md">
+                                Salvar no Cronograma
+                            </button>
+                        </div>
+
                     </div>
                 </div>
 
@@ -810,6 +887,47 @@
             </div>
             <div><label class="text-[10px] font-bold text-gray-400 uppercase flex items-center gap-1"><i data-lucide="link" class="w-3 h-3"></i> Link do Comprovante</label><input type="url" id="compra-link" class="mt-1 text-xs"></div>
             <button onclick="APP.saveNovaCompra()" class="w-full bg-arcco-black text-white font-montserrat font-bold uppercase py-4 rounded-lg mt-6 hover:bg-gray-800">Adicionar Despesa</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: DUPLICAR OBRA — permite editar nome e cliente antes de confirmar -->
+<div id="modal-duplicar-obra" class="modal-overlay fixed inset-0 bg-black/70 hidden z-[500] items-center justify-center p-4">
+    <div class="bg-white rounded-xl w-full max-w-md shadow-2xl overflow-hidden">
+        <div class="bg-arcco-black border-b border-gray-800 p-5 flex justify-between items-center">
+            <h4 class="font-montserrat font-bold text-sm uppercase text-white flex items-center gap-2">
+                <i data-lucide="copy" class="w-4 h-4 text-arcco-lime"></i> Duplicar Obra
+            </h4>
+            <button onclick="APP.closeModal()" class="text-gray-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+        </div>
+        <div class="p-6 space-y-5">
+            <p class="text-[10px] font-bold text-gray-500 uppercase bg-blue-50 border border-blue-200 p-3 rounded">
+                Todos os serviços serão copiados. Edite o nome e selecione o cliente desta nova obra antes de confirmar.
+            </p>
+            <!-- Nome da nova obra -->
+            <div>
+                <label class="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-1">Nome da Nova Obra *</label>
+                <input id="dup-obra-nome" type="text"
+                    class="font-bold text-arcco-black"
+                    placeholder="Ex: Residência Silva">
+            </div>
+            <!-- Cliente -->
+            <div>
+                <label class="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-1">Cliente *</label>
+                <select id="dup-obra-cliente" class="font-bold text-arcco-black bg-gray-50">
+                    <option value="">(SELECIONE O CLIENTE)</option>
+                </select>
+            </div>
+        </div>
+        <div class="p-5 border-t border-gray-200 bg-gray-50 flex gap-3">
+            <button onclick="APP.closeModal()"
+                class="flex-1 border border-gray-300 text-gray-600 font-bold text-xs uppercase py-3.5 rounded-lg hover:bg-gray-100">
+                Cancelar
+            </button>
+            <button onclick="APP.confirmarDuplicar()"
+                class="flex-1 bg-arcco-lime text-arcco-black font-montserrat font-bold text-xs uppercase py-3.5 rounded-lg hover:brightness-95 shadow-md">
+                Criar Cópia
+            </button>
         </div>
     </div>
 </div>
