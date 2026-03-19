@@ -17,13 +17,19 @@ import { showToast, showMasterSection, switchObraTab } from './ui.js';
 // ── Obras Grid (lista de projetos na tela principal) ──────────
 export function renderMasterObrasGrid(){
     const grid = document.getElementById('master-obras-grid');
-    if(!STATE.obras.length){
+    const now = today();
+
+    // Mostra apenas obras ATIVAS (não finalizadas)
+    const obrasAtivas = STATE.obras.filter(o => o.status !== 'finalizada');
+    if(!obrasAtivas.length && !STATE.obras.length){
         grid.innerHTML = '<div class="col-span-full p-8 text-center bg-white rounded-xl border border-gray-200"><p class="text-sm font-bold text-gray-400 uppercase">Nenhum projeto cadastrado.</p></div>';
         return;
     }
-    const now = today();
-
-    grid.innerHTML = STATE.obras.map(o => {
+    if(!obrasAtivas.length){
+        grid.innerHTML = '<div class="col-span-full p-8 text-center bg-white rounded-xl border border-gray-200"><p class="text-sm font-bold text-gray-400 uppercase">Todas as obras estão finalizadas. Veja em "Finalizadas".</p></div>';
+        return;
+    }
+    grid.innerHTML = obrasAtivas.map(o => {
         const tasks   = o.tasks||[];
         const done    = tasks.filter(t => t.status===2).length;
         const total   = tasks.length;
@@ -106,9 +112,10 @@ export function renderMasterObrasGrid(){
                 <div class="flex-1 bg-arcco-lime/10 border border-arcco-lime/30 rounded-lg py-1.5"><p class="text-[8px] font-bold text-gray-600 uppercase">Concluídos</p><p class="font-montserrat font-bold text-sm text-arcco-black">${done}</p></div>
                 <div class="flex-1 ${late.length?'bg-red-50 border-red-200':'bg-gray-50 border-gray-200'} border rounded-lg py-1.5"><p class="text-[8px] font-bold ${late.length?'text-arcco-red':'text-gray-400'} uppercase">Atrasos</p><p class="font-montserrat font-bold text-sm ${late.length?'text-arcco-red':'text-gray-300'}">${late.length}</p></div>
             </div>
-            <div class="border-t border-gray-100 bg-gray-50 p-3 flex gap-2 mt-auto">
-                <button onclick="APP.openObraDetail('${o.firebaseId}')" class="flex-1 bg-arcco-black text-white font-montserrat font-bold text-xs uppercase py-2.5 rounded hover:bg-gray-800 transition-colors shadow-sm">Abrir Gestão</button>
-                <!-- CORREÇÃO 1: duplicar agora abre um modal para editar nome/cliente antes de salvar -->
+            <div class="border-t border-gray-100 bg-gray-50 p-3 flex gap-2 mt-auto flex-wrap">
+                <button onclick="APP.openObraDetail('${o.firebaseId}')" class="flex-1 bg-arcco-black text-white font-montserrat font-bold text-xs uppercase py-2.5 rounded hover:bg-gray-800 transition-colors shadow-sm min-w-[100px]">Abrir Gestão</button>
+                <button onclick="APP.abrirModalEditarObra('${o.firebaseId}')" class="w-9 h-9 rounded bg-white border border-gray-300 text-gray-400 hover:bg-yellow-50 hover:text-yellow-600 flex items-center justify-center" title="Editar obra"><i data-lucide="edit-3" class="w-4 h-4"></i></button>
+                <button onclick="APP.finalizarObra('${o.firebaseId}')" class="w-9 h-9 rounded bg-white border border-gray-300 text-gray-400 hover:bg-green-50 hover:text-green-600 flex items-center justify-center" title="Finalizar obra"><i data-lucide="check-circle-2" class="w-4 h-4"></i></button>
                 <button onclick="APP.abrirModalDuplicar('${o.firebaseId}')" class="w-9 h-9 rounded bg-white border border-gray-300 text-gray-400 hover:bg-blue-50 hover:text-blue-500 flex items-center justify-center" title="Duplicar"><i data-lucide="copy" class="w-4 h-4"></i></button>
                 <button onclick="APP.deleteObraCompleta('${o.firebaseId}')" class="w-9 h-9 rounded bg-white border border-gray-300 text-gray-400 hover:bg-red-50 hover:text-arcco-red flex items-center justify-center" title="Excluir"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
             </div>
@@ -119,7 +126,7 @@ export function renderMasterObrasGrid(){
 
     // Renderiza os mini-gráficos de rosca em cada card de obra
     setTimeout(() => {
-        STATE.obras.forEach(o => {
+        obrasAtivas.forEach(o => {
             const tasks   = o.tasks||[];
             const mods    = [...new Set(tasks.map(t => t.modulo))];
             const donutId = `donut-${o.firebaseId.replace(/[^a-z0-9]/gi,'_')}`;
@@ -156,80 +163,313 @@ export const openObraDetail = (fId) => {
 };
 
 // ============================================================
-// CORREÇÃO 1: Duplicar Obra
-// Antes: duplicava direto com o mesmo nome e cliente
-// Agora: abre um modal para o usuário editar nome e cliente
+// NOVO: Editar dados da obra (nome, cliente, tipo)
 // ============================================================
+export const abrirModalEditarObra = (id) => {
+    const o = STATE.obras.find(x => x.firebaseId===id);
+    if(!o) return;
+    document.getElementById('new-obra-nome').value = o.nome;
+    document.getElementById('new-obra-tipo').value = o.tipo||'Reforma Residencial';
+    const sel = document.getElementById('new-obra-cliente');
+    sel.innerHTML = '<option value="">(SELECIONE O CLIENTE)</option>' +
+        STATE.clients.map(c => `<option value="${c.id}" ${c.id===o.clienteId?'selected':''}>${c.nome}</option>`).join('');
+    // Muda botão e título para modo edição
+    const btn = document.getElementById('btn-salvar-obra');
+    if(btn){ btn.innerText = 'Salvar Alterações'; btn.onclick = () => salvarEdicaoObra(id); }
+    const titulo = document.getElementById('modal-nova-obra-titulo');
+    if(titulo) titulo.innerText = 'Editar Obra';
+    const modal = document.getElementById('modal-nova-obra');
+    if(modal){ modal.classList.remove('hidden'); modal.classList.add('flex'); }
+};
 
-// Guarda qual obra está sendo duplicada
+export const salvarEdicaoObra = async (id) => {
+    const nome = document.getElementById('new-obra-nome').value.trim();
+    const cli  = document.getElementById('new-obra-cliente').value;
+    const tipo = document.getElementById('new-obra-tipo').value;
+    if(!nome||!cli) return showToast('Preencha nome e cliente');
+    await apiUpdate('obras', id, {nome, clienteId:cli, tipo});
+    showToast('OBRA ATUALIZADA!');
+    closeModal();
+    // Reseta modal para modo criação
+    const btn = document.getElementById('btn-salvar-obra');
+    if(btn){ btn.innerText = 'Criar Base da Obra'; btn.onclick = saveNovaObra; }
+    const titulo = document.getElementById('modal-nova-obra-titulo');
+    if(titulo) titulo.innerText = 'Nova Obra';
+};
+
+// ============================================================
+// NOVO: Finalizar Obra — arquiva e registra custo final
+// ============================================================
+export const finalizarObra = (id) => {
+    const o = STATE.obras.find(x => x.firebaseId===id);
+    if(!o) return;
+    const tasks      = o.tasks||[];
+    const totalCusto = tasks.reduce((a,t)=>a+(parseFloat(t.valor)||0),0);
+    const totalVenda = tasks.reduce((a,t)=>a+(parseFloat(t.valor_venda)||parseFloat(t.valor)||0),0);
+    const concluidas = tasks.filter(t=>t.status===2).length;
+    document.getElementById('fin-obra-nome').innerText    = o.nome;
+    document.getElementById('fin-custo-orcado').innerText = fmtBRL(totalCusto);
+    document.getElementById('fin-venda-orcada').innerText = fmtBRL(totalVenda);
+    document.getElementById('fin-servicos-ok').innerText  = `${concluidas} / ${tasks.length}`;
+    document.getElementById('fin-custo-real').value   = '';
+    document.getElementById('fin-obs-final').value    = '';
+    document.getElementById('fin-obra-id').value      = id;
+    const modal = document.getElementById('modal-finalizar-obra');
+    if(modal){ modal.classList.remove('hidden'); modal.classList.add('flex'); }
+};
+
+export const confirmarFinalizarObra = async () => {
+    const id        = document.getElementById('fin-obra-id').value;
+    const custoReal = parseFloat(document.getElementById('fin-custo-real').value)||null;
+    const obs       = document.getElementById('fin-obs-final').value;
+    await apiUpdate('obras', id, {
+        status: 'finalizada', dataFim: todayISO(),
+        custoFinal: custoReal, obsFinal: obs,
+        finalizadoPor: STATE.activeUser.name
+    });
+    showToast('OBRA FINALIZADA E ARQUIVADA!');
+    closeModal();
+    showMasterSection('dash');
+};
+
+// ============================================================
+// NOVO: Grid de Obras Finalizadas
+// ============================================================
+export function renderObrasFinalizadasGrid(){
+    const grid = document.getElementById('obras-finalizadas-grid');
+    if(!grid) return;
+    const finalizadas = STATE.obras.filter(o => o.status==='finalizada');
+    if(!finalizadas.length){
+        grid.innerHTML = '<div class="col-span-full p-8 text-center bg-white rounded-xl border border-gray-200"><p class="text-sm font-bold text-gray-400 uppercase">Nenhuma obra finalizada ainda.</p></div>';
+        return;
+    }
+    grid.innerHTML = finalizadas.map(o => {
+        const tasks      = o.tasks||[];
+        const totalCusto = tasks.reduce((a,t)=>a+(parseFloat(t.valor)||0),0);
+        const totalVenda = tasks.reduce((a,t)=>a+(parseFloat(t.valor_venda)||parseFloat(t.valor)||0),0);
+        const cli        = STATE.clients.find(c=>c.id===o.clienteId);
+        const custoFinal = o.custoFinal ? parseFloat(o.custoFinal) : null;
+        const variacao   = custoFinal !== null ? custoFinal - totalCusto : null;
+        return `
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col overflow-hidden">
+            <div class="bg-gray-800 px-4 py-2 flex items-center justify-between">
+                <span class="text-[8px] font-bold text-arcco-lime uppercase tracking-widest flex items-center gap-1">
+                    <i data-lucide="check-circle-2" class="w-3 h-3"></i> Concluída ${o.dataFim?fmtDate(o.dataFim):''}
+                </span>
+            </div>
+            <div class="p-5 flex-1">
+                <h4 class="font-montserrat font-bold text-sm uppercase leading-tight text-arcco-black truncate">${o.nome}</h4>
+                <p class="text-[9px] font-bold text-gray-400 uppercase mt-0.5">${cli?.nome||o.clienteId}</p>
+                <div class="mt-3 space-y-1.5">
+                    <div class="flex justify-between text-[9px] font-bold uppercase"><span class="text-gray-500">Orçado:</span><span>${fmtBRL(totalCusto)}</span></div>
+                    ${custoFinal!==null?`
+                    <div class="flex justify-between text-[9px] font-bold uppercase"><span class="text-gray-500">Custo Final:</span><span class="${custoFinal>totalCusto?'text-arcco-red':'text-green-600'}">${fmtBRL(custoFinal)}</span></div>
+                    <div class="flex justify-between text-[9px] font-bold uppercase"><span class="text-gray-500">Variação:</span><span class="${variacao>0?'text-arcco-red':'text-green-600'}">${variacao>0?'+':''}${fmtBRL(variacao)}</span></div>
+                    `:'<p class="text-[8px] text-gray-400 font-bold uppercase italic">Custo final não registrado</p>'}
+                </div>
+                ${o.obsFinal?`<p class="mt-2 text-[8px] text-gray-500 italic border-t border-gray-100 pt-2">"${o.obsFinal}"</p>`:''}
+            </div>
+            <div class="border-t border-gray-100 bg-gray-50 p-3 flex gap-2">
+                <button onclick="APP.openObraDetail('${o.firebaseId}')" class="flex-1 bg-arcco-black text-white font-bold text-xs uppercase py-2 rounded hover:bg-gray-800">Ver Detalhes</button>
+                <button onclick="APP.abrirModalDuplicar('${o.firebaseId}')" class="w-9 h-9 rounded bg-white border border-gray-300 text-gray-400 hover:bg-blue-50 hover:text-blue-500 flex items-center justify-center" title="Duplicar como obra ativa"><i data-lucide="copy" class="w-4 h-4"></i></button>
+                <button onclick="APP.reativarObra('${o.firebaseId}')" class="w-9 h-9 rounded bg-white border border-gray-300 text-gray-400 hover:bg-yellow-50 hover:text-yellow-600 flex items-center justify-center" title="Reativar"><i data-lucide="rotate-ccw" class="w-4 h-4"></i></button>
+            </div>
+        </div>`;
+    }).join('');
+    lucide.createIcons();
+}
+
+export const reativarObra = async (id) => {
+    if(!confirm('Reativar esta obra? Ela voltará para o portfólio ativo.')) return;
+    await apiUpdate('obras', id, {status:'ativa', dataFim:null});
+    showToast('OBRA REATIVADA!');
+};
+
+// ============================================================
+// NOVO: Página de Inteligência / Histórico de Desempenho
+// ============================================================
+export function renderHistoricoIntelligence(){
+    const cont = document.getElementById('historico-content');
+    if(!cont) return;
+    const todasObras = STATE.obras;
+    const todas = todasObras.flatMap(o => (o.tasks||[]).map(t => ({...t, obraNome:o.nome})));
+    const now   = today();
+
+    // Serviços mais atrasados
+    const comAtraso = todas
+        .filter(t => t.status!==2 && t.fim && parseDate(t.fim)<now)
+        .map(t => ({...t, diasAtraso: Math.ceil((now - parseDate(t.fim)) / 86400000)}))
+        .sort((a,b) => b.diasAtraso - a.diasAtraso).slice(0,10);
+
+    // Ranking equipes: atrasos
+    const equipeAtraso = {};
+    todas.filter(t=>t.status!==2&&t.fim&&parseDate(t.fim)<now&&t.forn)
+        .forEach(t=>{ equipeAtraso[t.forn]=(equipeAtraso[t.forn]||0)+1; });
+    const rankEquipeAtraso = Object.entries(equipeAtraso).sort((a,b)=>b[1]-a[1]).slice(0,8);
+
+    // Ranking equipes: pontualidade
+    const equipeTotal={}, equipeOk={};
+    todas.filter(t=>t.forn).forEach(t=>{
+        equipeTotal[t.forn]=(equipeTotal[t.forn]||0)+1;
+        if(t.status===2) equipeOk[t.forn]=(equipeOk[t.forn]||0)+1;
+    });
+    const rankEquipeMelhor = Object.entries(equipeOk)
+        .map(([n,ok])=>({nome:n,ok,total:equipeTotal[n]||1,pct:Math.round(ok/(equipeTotal[n]||1)*100)}))
+        .sort((a,b)=>b.pct-a.pct).slice(0,8);
+
+    // Módulos que mais atrasam
+    const moduloAtraso={};
+    todas.filter(t=>t.status!==2&&t.fim&&parseDate(t.fim)<now&&t.modulo)
+        .forEach(t=>{ moduloAtraso[t.modulo]=(moduloAtraso[t.modulo]||0)+1; });
+    const rankModulo = Object.entries(moduloAtraso).sort((a,b)=>b[1]-a[1]).slice(0,8);
+
+    // Obras com variação de custo
+    const obrasVariacao = todasObras.filter(o=>o.custoFinal).map(o=>{
+        const orcado=(o.tasks||[]).reduce((a,t)=>a+(parseFloat(t.valor)||0),0);
+        return {...o, orcado, variacao:parseFloat(o.custoFinal)-orcado};
+    }).sort((a,b)=>Math.abs(b.variacao)-Math.abs(a.variacao)).slice(0,5);
+
+    const totalServicos=todas.length, totalConcluidos=todas.filter(t=>t.status===2).length;
+    const taxaConclusao=totalServicos>0?Math.round(totalConcluidos/totalServicos*100):0;
+
+    cont.innerHTML = `
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div class="bg-white p-5 rounded-xl border border-gray-200 shadow-sm text-center">
+            <p class="text-[8px] font-bold text-gray-400 uppercase tracking-widest">Total de Obras</p>
+            <p class="font-montserrat font-black-italic text-4xl text-arcco-black mt-1">${todasObras.length}</p>
+        </div>
+        <div class="bg-white p-5 rounded-xl border border-gray-200 shadow-sm text-center">
+            <p class="text-[8px] font-bold text-gray-400 uppercase tracking-widest">Total de Serviços</p>
+            <p class="font-montserrat font-black-italic text-4xl text-arcco-black mt-1">${totalServicos}</p>
+        </div>
+        <div class="bg-arcco-lime/10 p-5 rounded-xl border border-arcco-lime/40 shadow-sm text-center">
+            <p class="text-[8px] font-bold text-gray-600 uppercase tracking-widest">Taxa de Conclusão</p>
+            <p class="font-montserrat font-black-italic text-4xl text-arcco-black mt-1">${taxaConclusao}%</p>
+        </div>
+        <div class="${comAtraso.length?'bg-red-50 border-red-200':'bg-gray-50 border-gray-200'} p-5 rounded-xl border shadow-sm text-center">
+            <p class="text-[8px] font-bold ${comAtraso.length?'text-arcco-red':'text-gray-400'} uppercase tracking-widest">Em Atraso</p>
+            <p class="font-montserrat font-black-italic text-4xl ${comAtraso.length?'text-arcco-red':'text-gray-300'} mt-1">${comAtraso.length}</p>
+        </div>
+    </div>
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <div class="bg-red-50 border-b border-red-100 px-5 py-3 flex items-center gap-2">
+                <i data-lucide="clock" class="w-4 h-4 text-arcco-red"></i>
+                <h4 class="font-montserrat font-bold text-xs uppercase text-arcco-red">Serviços Mais Atrasados</h4>
+            </div>
+            <div class="divide-y divide-gray-50">
+                ${comAtraso.length?comAtraso.map(t=>`
+                <div class="px-5 py-3 flex justify-between items-center">
+                    <div class="flex-1 min-w-0 pr-3"><p class="text-[10px] font-bold text-arcco-black uppercase truncate">${t.nome}</p><p class="text-[8px] font-bold text-gray-400 uppercase">${t.obraNome}</p></div>
+                    <span class="text-[9px] font-bold text-white bg-arcco-red px-2 py-1 rounded shrink-0">+${t.diasAtraso}d</span>
+                </div>`).join(''):'<div class="px-5 py-6 text-center text-[10px] font-bold text-gray-400 uppercase">🎉 Nenhum atraso!</div>'}
+            </div>
+        </div>
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <div class="bg-orange-50 border-b border-orange-100 px-5 py-3 flex items-center gap-2">
+                <i data-lucide="users" class="w-4 h-4 text-arcco-orange"></i>
+                <h4 class="font-montserrat font-bold text-xs uppercase text-arcco-orange">Equipes com Mais Atrasos</h4>
+            </div>
+            <div class="divide-y divide-gray-50">
+                ${rankEquipeAtraso.length?rankEquipeAtraso.map(([nome,qtd],i)=>`
+                <div class="px-5 py-3 flex justify-between items-center">
+                    <div class="flex items-center gap-2"><span class="text-[8px] font-bold text-gray-400">${i+1}.</span><p class="text-[10px] font-bold text-arcco-black uppercase">${nome}</p></div>
+                    <span class="text-[9px] font-bold text-arcco-orange bg-orange-100 px-2 py-1 rounded">${qtd}x</span>
+                </div>`).join(''):'<div class="px-5 py-6 text-center text-[10px] font-bold text-gray-400 uppercase">Sem dados</div>'}
+            </div>
+        </div>
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <div class="bg-arcco-lime/10 border-b border-arcco-lime/30 px-5 py-3 flex items-center gap-2">
+                <i data-lucide="trophy" class="w-4 h-4 text-arcco-black"></i>
+                <h4 class="font-montserrat font-bold text-xs uppercase text-arcco-black">🏆 Equipes Mais Pontuais</h4>
+            </div>
+            <div class="divide-y divide-gray-50">
+                ${rankEquipeMelhor.length?rankEquipeMelhor.map((e,i)=>`
+                <div class="px-5 py-3 flex justify-between items-center">
+                    <div class="flex items-center gap-2"><span class="text-[9px]">${i===0?'🥇':i===1?'🥈':i===2?'🥉':`${i+1}.`}</span><p class="text-[10px] font-bold text-arcco-black uppercase">${e.nome}</p></div>
+                    <div class="text-right"><span class="text-[9px] font-bold text-arcco-black bg-arcco-lime px-2 py-1 rounded">${e.pct}%</span><p class="text-[7px] text-gray-400 font-bold mt-0.5">${e.ok}/${e.total} ok</p></div>
+                </div>`).join(''):'<div class="px-5 py-6 text-center text-[10px] font-bold text-gray-400 uppercase">Sem dados</div>'}
+            </div>
+        </div>
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <div class="bg-blue-50 border-b border-blue-100 px-5 py-3 flex items-center gap-2">
+                <i data-lucide="layers" class="w-4 h-4 text-blue-600"></i>
+                <h4 class="font-montserrat font-bold text-xs uppercase text-blue-700">Etapas que Mais Atrasam</h4>
+            </div>
+            <div class="divide-y divide-gray-50">
+                ${rankModulo.length?rankModulo.map(([nome,qtd],i)=>`
+                <div class="px-5 py-3 flex justify-between items-center">
+                    <div class="flex items-center gap-2"><span class="text-[8px] font-bold text-gray-400">${i+1}.</span><p class="text-[10px] font-bold text-arcco-black uppercase truncate max-w-[200px]">${nome}</p></div>
+                    <span class="text-[9px] font-bold text-blue-700 bg-blue-100 px-2 py-1 rounded">${qtd}x</span>
+                </div>`).join(''):'<div class="px-5 py-6 text-center text-[10px] font-bold text-gray-400 uppercase">Sem atrasos!</div>'}
+            </div>
+        </div>
+        ${obrasVariacao.length?`
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden lg:col-span-2">
+            <div class="bg-purple-50 border-b border-purple-100 px-5 py-3 flex items-center gap-2">
+                <i data-lucide="bar-chart-2" class="w-4 h-4 text-purple-600"></i>
+                <h4 class="font-montserrat font-bold text-xs uppercase text-purple-700">Obras: Orçado vs. Custo Final</h4>
+            </div>
+            <div class="divide-y divide-gray-50">
+                ${obrasVariacao.map(o=>`
+                <div class="px-5 py-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+                    <p class="text-[10px] font-bold text-arcco-black uppercase">${o.nome}</p>
+                    <div class="flex gap-4 text-right">
+                        <div><p class="text-[7px] text-gray-400 uppercase font-bold">Orçado</p><p class="text-[9px] font-bold text-gray-600">${fmtBRL(o.orcado)}</p></div>
+                        <div><p class="text-[7px] text-gray-400 uppercase font-bold">Final</p><p class="text-[9px] font-bold text-gray-600">${fmtBRL(parseFloat(o.custoFinal))}</p></div>
+                        <div><p class="text-[7px] text-gray-400 uppercase font-bold">Variação</p><p class="text-[9px] font-bold ${o.variacao>0?'text-arcco-red':'text-green-600'}">${o.variacao>0?'+':''}${fmtBRL(o.variacao)}</p></div>
+                    </div>
+                </div>`).join('')}
+            </div>
+        </div>`:''}
+        <div class="bg-arcco-black rounded-xl p-6 lg:col-span-2">
+            <h4 class="font-montserrat font-bold text-sm text-arcco-lime uppercase mb-3">💡 Como usar esses dados</h4>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-[9px] font-bold text-gray-400 uppercase">
+                <div class="bg-gray-900 p-3 rounded-lg"><p class="text-white mb-1">Para precificar melhor:</p>Veja quais serviços sempre atrasam. Se Demolição sempre passa do prazo, adicione mais dias no PERT e no custo de MO.</div>
+                <div class="bg-gray-900 p-3 rounded-lg"><p class="text-white mb-1">Para reconhecer equipes:</p>Use o ranking de pontualidade no fim do ano. Quem está no topo merece reconhecimento público.</div>
+                <div class="bg-gray-900 p-3 rounded-lg"><p class="text-white mb-1">Para reduzir desvios:</p>Módulos que mais atrasam revelam onde você precisa de mais folga no cronograma ou precificação errada.</div>
+            </div>
+        </div>
+    </div>`;
+    lucide.createIcons();
+}
+
+// ── Duplicar Obra (com Tipo de Obra e sempre vai para ativas) ──
 let _obraParaDuplicarId = null;
 
-// Abre o modal de confirmação/edição antes de duplicar
 export const abrirModalDuplicar = (id) => {
     const orig = STATE.obras.find(x => x.firebaseId===id);
     if(!orig) return;
     _obraParaDuplicarId = id;
-
-    // Preenche o modal com os dados originais para o usuário editar
     document.getElementById('dup-obra-nome').value = orig.nome + ' (Cópia)';
-
-    // Popula o select de clientes no modal de duplicar
+    const tipoSel = document.getElementById('dup-obra-tipo');
+    if(tipoSel) tipoSel.value = orig.tipo||'Reforma Residencial';
     const sel = document.getElementById('dup-obra-cliente');
     sel.innerHTML = '<option value="">(SELECIONE O CLIENTE)</option>' +
         STATE.clients.map(c => `<option value="${c.id}" ${c.id===orig.clienteId?'selected':''}>${c.nome}</option>`).join('');
-
-    // Abre o modal
     const modal = document.getElementById('modal-duplicar-obra');
     if(modal){ modal.classList.remove('hidden'); modal.classList.add('flex'); }
 };
 
-// Executa a duplicação com o nome e cliente já editados pelo usuário
 export const confirmarDuplicar = async () => {
     const id   = _obraParaDuplicarId;
     const orig = STATE.obras.find(x => x.firebaseId===id);
     if(!orig || !id) return;
-
     const novoNome = document.getElementById('dup-obra-nome').value.trim();
     const novoCli  = document.getElementById('dup-obra-cliente').value;
-
+    const novoTipo = document.getElementById('dup-obra-tipo')?.value || orig.tipo;
     if(!novoNome) return showToast('Digite o nome da nova obra!');
     if(!novoCli)  return showToast('Selecione o cliente!');
-
-    // Cria novos IDs para as tarefas copiadas para não conflitar com as originais
-    const idMap = {};
-    const base  = Date.now();
-    const tasks = (orig.tasks||[]).map((t,i) => {
-        const nid = `T-${base+i}`;
-        idMap[t.id] = nid;
-        // Status volta para 0 (pendente) na cópia
-        return {...t, id:nid, status:0, concluidoPor:null};
-    });
-
-    // Atualiza dependências para apontar para os novos IDs
-    tasks.forEach(t => {
-        if(t.dep?.length) t.dep = t.dep.map(d => idMap[d]||d);
-    });
-
-    await apiAdd('obras', {
-        nome:      novoNome,
-        clienteId: novoCli,
-        tipo:      orig.tipo,
-        contrato:  orig.contrato,
-        taxa_adm:  orig.taxa_adm||0,
-        modulos:   [...(orig.modulos||[])],
-        tasks,
-        compras: [], medicoes: [], diarias: [],
-        timestamp: base
-    });
-
-    // Fecha o modal e limpa o estado
-    const modal = document.getElementById('modal-duplicar-obra');
+    const idMap={}, base=Date.now();
+    const tasks=(orig.tasks||[]).map((t,i)=>{ const nid=`T-${base+i}`; idMap[t.id]=nid; return {...t,id:nid,status:0,concluidoPor:null}; });
+    tasks.forEach(t=>{ if(t.dep?.length) t.dep=t.dep.map(d=>idMap[d]||d); });
+    await apiAdd('obras',{nome:novoNome,clienteId:novoCli,tipo:novoTipo,contrato:orig.contrato,taxa_adm:orig.taxa_adm||0,modulos:[...(orig.modulos||[])],tasks,compras:[],medicoes:[],diarias:[],status:'ativa',timestamp:base});
+    const modal=document.getElementById('modal-duplicar-obra');
     if(modal){ modal.classList.add('hidden'); modal.classList.remove('flex'); }
-    _obraParaDuplicarId = null;
-    showToast('OBRA DUPLICADA COM SUCESSO!');
+    _obraParaDuplicarId=null;
+    showToast('OBRA DUPLICADA — disponível nas obras ativas!');
 };
 
-// Mantido por compatibilidade (mas não é mais chamado diretamente)
 export const duplicarObra = abrirModalDuplicar;
 
 export const deleteObraCompleta = async (id) => {
@@ -1206,7 +1446,7 @@ export const saveNovaObra = async () => {
     const cli  = document.getElementById('new-obra-cliente').value;
     const tipo = document.getElementById('new-obra-tipo').value;
     if(!nome||!cli) return showToast('Preencha nome e cliente');
-    await apiAdd('obras',{nome,clienteId:cli,tipo,contrato:'PREÇO FECHADO',taxa_adm:0,tasks:[],compras:[],medicoes:[],diarias:[],modulos:[],timestamp:Date.now()});
+    await apiAdd('obras',{nome,clienteId:cli,tipo,contrato:'PREÇO FECHADO',taxa_adm:0,tasks:[],compras:[],medicoes:[],diarias:[],modulos:[],status:'ativa',timestamp:Date.now()});
     showToast('PROJETO CRIADO');
     closeModal();
 };
