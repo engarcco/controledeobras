@@ -33,8 +33,7 @@ import { renderMasterObrasGrid, openObraDetail,
          toggleTaskStatus, deleteTask, toggleAtencao,
          saveModuloObra, editModuloObra, cancelEditModulo, deleteModuloObra,
          saveNovaObra, updateObraConfig,
-         openModalNovaCompra,
-    _toggleTaxaMat, saveNovaCompra, aprovarCompra, deleteCompra,
+         openModalNovaCompra, saveNovaCompra, aprovarCompra, deleteCompra,
          _toggleTaxaMat } from './obras.js';
 
 // ── Medições ─────────────────────────────────────────────────
