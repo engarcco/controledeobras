@@ -112,6 +112,22 @@ export const switchObraTab = (tab) => {
         const obraId = window.APP?.STATE?.currentObraId;
         const obra   = window.APP?.STATE?.obras?.find(o => o.firebaseId===obraId);
         if(tab==='medicoes'){
+            // Mostra/oculta botão de Entrada conforme tipo de contrato
+            // ADM: entrada é rara — mostra só se toggle ativo
+            // Preço Fechado: sempre mostra
+            const obraId2 = window.APP?.STATE?.currentObraId;
+            const o2 = window.APP?.STATE?.obras?.find(x => x.firebaseId===obraId2);
+            const btnEntrada = document.getElementById('btn-registrar-entrada');
+            if(btnEntrada && o2){
+                const isAdm2 = o2.contrato==='ADMINISTRAÇÃO';
+                const temEntrada = parseFloat(o2.entrada||0) > 0;
+                // Para ADM: só mostra se já tiver entrada ou se o toggle estiver ativo
+                if(isAdm2 && !temEntrada){
+                    btnEntrada.classList.add('hidden');
+                } else {
+                    btnEntrada.classList.remove('hidden');
+                }
+            }
             if(obra) window.APP?.renderMedicoes?.();
             else setTimeout(() => window.APP?.renderMedicoes?.(), 600);
         }
