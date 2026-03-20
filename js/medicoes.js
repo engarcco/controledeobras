@@ -327,8 +327,11 @@ export const openModalNovaMedicao = () => {
                 const vendaServico      = vendaServicoBruto * fatorDesconto; // fatorDesconto = fatorDesc × fatorEntrada
 
                 // ── Calcula quanto JÁ foi medido deste serviço em medições anteriores ──
-                // Soma todos os pct deste task em todas as medições já salvas
+                // Se estiver editando, EXCLUI a própria medição do cálculo
+                // para que o serviço não apareça como 100% bloqueado
+                const _editingIdCalc = document.getElementById('modal-nova-medicao')?.getAttribute('data-editing-id')||'';
                 const pctJaMedido = (o.medicoes||[]).reduce((acc, med) => {
+                    if(_editingIdCalc && med.id === _editingIdCalc) return acc; // ignora a medição em edição
                     const srv = (med.porLider||[])
                         .flatMap(l => l.servicos||[])
                         .find(s => s.taskId === t.id);
@@ -549,7 +552,12 @@ export const saveMedicao = async () => {
         retencaoGlobal    += retencao;
     });
 
-    if(!temServico) return showToast('SELECIONE PELO MENOS UM SERVIÇO');
+    // Em modo edição, o modal já tem os serviços pré-marcados
+    // Se o usuário desmarcou tudo intencionalmente, avisa; caso contrário deixa passar
+    const modal = document.getElementById('modal-nova-medicao');
+    const editingId = modal?.getAttribute('data-editing-id')||'';
+    if(!temServico && !editingId) return showToast('SELECIONE PELO MENOS UM SERVIÇO');
+    if(!temServico && editingId) return showToast('MARQUE AO MENOS UM SERVIÇO PARA SALVAR');
 
     const valorAdm   = isAdm ? (custoMOTotal + totalVendaGlobal) * (taxa/100) : 0;
     const medicaoId  = `M-${Date.now()}`;
@@ -579,7 +587,7 @@ export const saveMedicao = async () => {
     const medicoes = [...(o.medicoes||[]), novaMedicao];
 
     // Verifica se estamos editando uma medição existente
-    const modal       = document.getElementById('modal-nova-medicao');
+    // (modal já foi buscado acima para a validação)
     const editingId   = modal?.getAttribute('data-editing-id')||'';
 
     let medicoesFinal;
