@@ -31,27 +31,29 @@ export function renderMedicoes(){
     // Entrada/sinal já pago pelo cliente (descontado das medições futuras)
     const entrada          = parseFloat(o.entrada)||0;
 
-    // Aviso de ajustes ativos no topo da aba medições (desconto + entrada)
-    const vendaBrutaRender = (o.tasks||[]).reduce((a,t)=>a+(parseFloat(t.valor_venda)||parseFloat(t.valor)||0),0);
-    const descontoRender   = parseFloat(o.desconto)||0;
-    const entradaRender    = parseFloat(o.entrada)||0;
-    const valorAMedirRend  = Math.max(0, vendaBrutaRender - descontoRender - entradaRender);
-    const fatorRender      = vendaBrutaRender > 0 ? valorAMedirRend / vendaBrutaRender : 1;
-    const temAjusteRender  = descontoRender > 0 || entradaRender > 0;
+    // Aviso no topo da aba medições — mostra os dois fatores em cascata
+    const vendaBrutaRender  = (o.tasks||[]).reduce((a,t)=>a+(parseFloat(t.valor_venda)||parseFloat(t.valor)||0),0);
+    const descontoRender    = parseFloat(o.desconto)||0;
+    const entradaRender     = parseFloat(o.entrada)||0;
+    const contratoRender    = Math.max(0, vendaBrutaRender - descontoRender);
+    const fatorDescRender   = vendaBrutaRender > 0 ? contratoRender / vendaBrutaRender : 1;
+    const fatorEntRender    = contratoRender > 0 ? Math.max(0, contratoRender - entradaRender) / contratoRender : 1;
+    const saldoAMedirRender = contratoRender * fatorEntRender;
+    const temAjusteRender   = descontoRender > 0 || entradaRender > 0;
 
     const avisoMedRender = temAjusteRender ? `
         <div class="bg-orange-50 border border-orange-200 rounded-xl p-4 flex items-start gap-3 mb-4">
             <i data-lucide="tag" class="w-4 h-4 text-arcco-orange shrink-0 mt-0.5"></i>
             <div class="flex-1">
-                <p class="text-[10px] font-bold text-arcco-orange uppercase">Ajustes ativos — valores nas medições são proporcionais</p>
-                <div class="text-[9px] text-gray-600 mt-1 space-y-0.5">
-                    <p>Valor bruto: <strong>${fmtBRL(vendaBrutaRender)}</strong></p>
-                    ${descontoRender>0 ? `<p>(-) Desconto: <strong class="text-arcco-orange">- ${fmtBRL(descontoRender)}</strong></p>` : ''}
-                    ${entradaRender>0  ? `<p>(-) Entrada já paga: <strong class="text-green-600">- ${fmtBRL(entradaRender)}</strong></p>` : ''}
-                    <p class="border-t border-orange-200 pt-1 mt-1 font-bold">
-                        A medir via medições: ${fmtBRL(valorAMedirRend)}
-                        (fator: ${(fatorRender*100).toFixed(2)}%)
-                    </p>
+                <p class="text-[10px] font-bold text-arcco-orange uppercase">Valores das medições — proporcionais ao contrato</p>
+                <div class="text-[9px] text-gray-600 mt-2 space-y-1">
+                    <div class="flex justify-between"><span>Valor bruto dos serviços:</span><strong>${fmtBRL(vendaBrutaRender)}</strong></div>
+                    ${descontoRender>0 ? `<div class="flex justify-between text-arcco-orange"><span>(-) Desconto (${(descontoRender/vendaBrutaRender*100).toFixed(2)}%):</span><strong>- ${fmtBRL(descontoRender)}</strong></div>` : ''}
+                    <div class="flex justify-between font-bold border-t border-orange-200 pt-1"><span>= Contrato fechado:</span><strong>${fmtBRL(contratoRender)}</strong></div>
+                    ${entradaRender>0 ? `
+                    <div class="flex justify-between text-green-700 mt-1"><span>(-) Entrada já paga (${(entradaRender/contratoRender*100).toFixed(1)}%):</span><strong>- ${fmtBRL(entradaRender)}</strong></div>
+                    <div class="flex justify-between font-bold border-t border-orange-200 pt-1"><span>= Saldo via medições:</span><strong>${fmtBRL(saldoAMedirRender)}</strong></div>
+                    ` : ''}
                 </div>
             </div>
         </div>` : '';
@@ -240,36 +242,48 @@ export const openModalNovaMedicao = () => {
     document.getElementById('med-fim').value    = '';
     document.getElementById('med-obs').value    = '';
 
-    // ── Fator combinado: desconto + entrada ─────────────────────
-    // Ambos reduzem o valor que cada serviço representa nas medições.
-    // Ex: obra R$62.431, desconto R$2.431, entrada R$5.000
-    //   → valor a medir via medições = 62.431 - 2.431 - 5.000 = 55.000
-    //   → fator = 55.000 / 62.431 = 0,8809
-    // Cada serviço vale 88,09% do valor cadastrado nas medições.
+    // ── Dois fatores aplicados em cascata ────────────────────────
+    // 1. FATOR DESCONTO: reduz o valor contratado de cada serviço
+    //    fatorDesc = contratoFinal / vendaBruta
+    //    Ex: 60.000 / 62.397 = 0,9616 → cada R$10.000 vale R$9.616
+    //
+    // 2. FATOR ENTRADA: do valor já com desconto, quanto ainda falta cobrar
+    //    fatorEntrada = 1 − (entrada / contratoFinal)
+    //    Ex: 1 − (12.000 / 60.000) = 0,80 → cobrar 80% via medições
+    //
+    // Valor na medição = bruto × fatorDesc × fatorEntrada
+    //    Ex: 10.000 × 0,9616 × 0,80 = R$7.693 a cobrar do cliente
+    //    + R$1.923 já quitados pela entrada = R$9.616 (contrato do serviço) ✓
     const vendaBrutaTotal = tasks.reduce((a,t) => a+(parseFloat(t.valor_venda)||parseFloat(t.valor)||0),0);
     const desconto        = parseFloat(o.desconto)||0;
     const entradaPaga     = parseFloat(o.entrada)||0;
-    // Total a ser medido via medições = bruto - desconto - entrada
-    const valorAMedir     = Math.max(0, vendaBrutaTotal - desconto - entradaPaga);
-    const fatorDesconto   = vendaBrutaTotal > 0
-        ? valorAMedir / vendaBrutaTotal
-        : 1;
+    const contratoFinal   = Math.max(0, vendaBrutaTotal - desconto);
+    // Fator 1: desconto proporcional sobre o valor bruto de cada serviço
+    const fatorDesc       = vendaBrutaTotal > 0 ? contratoFinal / vendaBrutaTotal : 1;
+    // Fator 2: proporção do contrato que ainda falta cobrar (o que a entrada não cobriu)
+    const fatorEntrada    = contratoFinal > 0 ? Math.max(0, contratoFinal - entradaPaga) / contratoFinal : 1;
+    // Fator combinado: aplica os dois em cascata
+    const fatorDesconto   = fatorDesc * fatorEntrada;
+    // Porcentagem da entrada sobre o contrato (para mostrar no aviso)
+    const pctEntrada      = contratoFinal > 0 ? (entradaPaga / contratoFinal * 100) : 0;
 
-    // Monta o aviso para exibir no topo do modal
+    // Aviso no modal
     const temAjuste = desconto > 0 || entradaPaga > 0;
     const avisoDesconto = temAjuste ? `
         <div class="bg-orange-50 border border-orange-200 rounded-lg px-4 py-3 flex items-start gap-3 mb-1">
             <i data-lucide="tag" class="w-4 h-4 text-arcco-orange shrink-0 mt-0.5"></i>
             <div>
-                <p class="text-[10px] font-bold text-arcco-orange uppercase">Ajustes ativos nesta obra</p>
-                <div class="text-[9px] text-gray-600 mt-1 space-y-0.5">
-                    <p>Valor bruto dos serviços: <strong>${fmtBRL(vendaBrutaTotal)}</strong></p>
-                    ${desconto>0    ? `<p>(-) Desconto: <strong class="text-arcco-orange">- ${fmtBRL(desconto)}</strong></p>` : ''}
-                    ${entradaPaga>0 ? `<p>(-) Entrada já paga: <strong class="text-green-600">- ${fmtBRL(entradaPaga)}</strong></p>` : ''}
-                    <p class="border-t border-orange-200 pt-1 mt-1">
-                        Valor a medir via medições: <strong>${fmtBRL(valorAMedir)}</strong>
-                        (fator: <strong>${(fatorDesconto*100).toFixed(2)}%</strong>)
+                <p class="text-[10px] font-bold text-arcco-orange uppercase">Como os valores são calculados</p>
+                <div class="text-[9px] text-gray-600 mt-1 space-y-1">
+                    <p>Bruto: <strong>${fmtBRL(vendaBrutaTotal)}</strong>
+                    ${desconto>0 ? ` → após desconto: <strong>${fmtBRL(contratoFinal)}</strong> (${(fatorDesc*100).toFixed(2)}% do bruto)` : ''}</p>
+                    ${entradaPaga>0 ? `
+                    <p>Entrada de <strong class="text-green-700">${fmtBRL(entradaPaga)}</strong> = <strong>${pctEntrada.toFixed(1)}%</strong> do contrato já quitado</p>
+                    <p class="font-bold text-arcco-black border-t border-orange-200 pt-1">
+                        Cada serviço nas medições = valor bruto × ${(fatorDesc*100).toFixed(2)}% × ${(fatorEntrada*100).toFixed(1)}%
                     </p>
+                    <p class="text-gray-500">Ex: R$10.000 bruto → R$${(10000*fatorDesc).toFixed(0)} contratado → <strong>R$${(10000*fatorDesconto).toFixed(0)} a cobrar</strong> + R$${(10000*fatorDesc*(1-fatorEntrada)).toFixed(0)} já vieram pela entrada</p>
+                    ` : ''}
                 </div>
             </div>
         </div>` : '';
@@ -284,12 +298,16 @@ export const openModalNovaMedicao = () => {
 
             // Lista de serviços individuais dentro do módulo
             const servicosHtml = mTasks.map((t,i) => {
-                // Valores brutos do cadastro, depois ajustados pelo fator de desconto
+                // MO = o que paga o fornecedor → NÃO é afetado por desconto nem entrada
                 const moServicoBruto    = parseFloat(t.valor_mo) || parseFloat(t.valor) || 0;
+                const moServico         = moServicoBruto; // sem alteração
+
+                // VENDA = o que cobra do cliente → sofre desconto E entrada em cascata
+                // fatorDesc:    reduz pelo desconto proporcional (ex: 96,16%)
+                // fatorEntrada: reduz pela entrada proporcional  (ex: 80,00%)
+                // Resultado: venda bruta × fatorDesc × fatorEntrada = valor a cobrar na medição
                 const vendaServicoBruto = parseFloat(t.valor_venda) || parseFloat(t.valor) || 0;
-                // Aplica fator: se desconto de R$2.431 numa obra de R$62.431 → fator=0,9611
-                const moServico    = moServicoBruto    * fatorDesconto;
-                const vendaServico = vendaServicoBruto * fatorDesconto;
+                const vendaServico      = vendaServicoBruto * fatorDesconto; // fatorDesconto = fatorDesc × fatorEntrada
 
                 // ── Calcula quanto JÁ foi medido deste serviço em medições anteriores ──
                 // Soma todos os pct deste task em todas as medições já salvas
@@ -326,7 +344,11 @@ export const openModalNovaMedicao = () => {
                         <label for="${tid}" class="flex-1 ${jaConcluido?'cursor-not-allowed':'cursor-pointer'}">
                             <p class="text-[10px] font-bold text-arcco-black uppercase leading-tight">${t.nome}</p>
                             <p class="text-[8px] font-bold text-gray-400 uppercase mt-0.5">
-                                ${t.forn||'Sem equipe'} • MO: ${fmtBRL(moServico)} • Venda: ${fmtBRL(vendaServico)}${fatorDesconto<1?` <span class='text-arcco-orange'>(tabela: ${fmtBRL(vendaServicoBruto)})</span>`:''}
+                                ${t.forn||'Sem equipe'}
+                                • MO (fornecedor): ${fmtBRL(moServico)}
+                                • Venda contratada: ${fmtBRL(vendaServicoBruto * fatorDesc)}
+                                ${entradaPaga>0 ? `• <span class='text-green-600'>Entrada: -${fmtBRL(vendaServicoBruto * fatorDesc * (1-fatorEntrada))}</span>` : ''}
+                                • <strong class='text-arcco-black'>A cobrar: ${fmtBRL(vendaServico)}</strong>
                             </p>
                             <!-- Barra de progresso de medição -->
                             <div class="flex items-center gap-2 mt-1.5">
