@@ -1590,24 +1590,51 @@ export function renderComprasList(o){
 }
 
 export const openModalNovaCompra = () => {
-    document.getElementById('compra-desc').value  = '';
-    document.getElementById('compra-valor').value = '';
-    document.getElementById('compra-data').value  = new Date().toISOString().split('T')[0];
-    document.getElementById('compra-link').value  = '';
+    // Defensivo: verifica elementos antes de acessar
+    const el = (id) => document.getElementById(id);
+    if(el('compra-desc'))  el('compra-desc').value  = '';
+    if(el('compra-valor')) el('compra-valor').value = '';
+    if(el('compra-data'))  el('compra-data').value  = new Date().toISOString().split('T')[0];
+    if(el('compra-link'))  el('compra-link').value  = '';
     openModal('modal-nova-compra');
 };
 
 export const saveNovaCompra = async () => {
-    const desc = document.getElementById('compra-desc').value;
-    const val  = parseFloat(document.getElementById('compra-valor').value)||0;
-    const dt   = document.getElementById('compra-data').value;
-    const lnk  = document.getElementById('compra-link').value;
+    const el   = (id) => document.getElementById(id);
+    const desc = el('compra-desc')?.value || '';
+    const val  = parseFloat(el('compra-valor')?.value)||0;
+    const dt   = el('compra-data')?.value || '';
+    const lnk  = el('compra-link')?.value || '';
     if(!desc||!val) return showToast('Preencha descrição e valor.');
+
     const o = STATE.obras.find(x => x.firebaseId===STATE.currentObraId);
-    const nova = {id:`C-${Date.now()}`,desc,valor:val,data:dt,link:lnk,forn:STATE.activeUser.role==='FORNECEDOR'?STATE.activeUser.name:'GESTOR (ARCCO)',status:STATE.activeUser.role==='FORNECEDOR'?'pendente':'aprovado',aprovadoPor:STATE.activeUser.role!=='FORNECEDOR'?STATE.activeUser.name:null};
-    await apiUpdate('obras',STATE.currentObraId,{compras:[...(o.compras||[]),nova]});
-    showToast(STATE.activeUser.role==='FORNECEDOR'?'MATERIAL ENVIADO PARA APROVAÇÃO!':'DESPESA LANÇADA!');
+    if(!o) return showToast('Nenhuma obra selecionada.');
+
+    // Líder → pendente (Master precisa aprovar)
+    // Master → aprovado direto
+    const isLider  = STATE.activeUser.role === 'FORNECEDOR';
+    const isMaster = STATE.activeUser.role === 'MASTER';
+    const nova = {
+        id:          `C-${Date.now()}`,
+        desc, valor: val, data: dt, link: lnk,
+        forn:        isLider ? STATE.activeUser.name : 'GESTOR (ARCCO)',
+        status:      isMaster ? 'aprovado' : 'pendente',
+        aprovadoPor: isMaster ? STATE.activeUser.name : null
+    };
+
+    await apiUpdate('obras', STATE.currentObraId, {compras:[...(o.compras||[]), nova]});
+    showToast(isMaster ? 'DESPESA LANÇADA!' : 'MATERIAL ENVIADO PARA APROVAÇÃO DO MASTER!');
     closeModal();
+
+    // Re-renderiza a aba correta dependendo de quem lançou
+    if(isLider){
+        // Atualiza STATE local imediatamente
+        const idx = STATE.obras.findIndex(x => x.firebaseId===STATE.currentObraId);
+        if(idx>=0) STATE.obras[idx] = {...STATE.obras[idx], compras:[...(o.compras||[]),nova]};
+        // Re-renderiza o checklist do fornecedor
+        const { renderFornChecklist } = await import('./portal-forn.js');
+        renderFornChecklist(STATE.currentObraId);
+    }
 };
 
 export const aprovarCompra = async (fId, cId) => {
