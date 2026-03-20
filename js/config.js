@@ -4,7 +4,7 @@
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
 import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-import { getFirestore, doc, updateDoc, collection, onSnapshot, addDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+import { getFirestore, doc, updateDoc, setDoc, collection, onSnapshot, addDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 // ── Firebase config ──────────────────────────────────────────
 export const FB_CONFIG = {
@@ -26,7 +26,17 @@ export const db   = getFirestore(firebaseApp);
 export const col     = (name)        => collection(db, 'artifacts', APP_ID, 'public', 'data', name);
 export const docR    = (name, id)    => doc(db, 'artifacts', APP_ID, 'public', 'data', name, id);
 export const apiAdd    = (c, d)      => addDoc(col(c), d);
-export const apiUpdate = (c, id, d)  => updateDoc(docR(c, id), d);
+export const apiUpdate = async (c, id, d) => {
+    // Remove campos com valor undefined (Firestore não aceita)
+    // null é substituído por 0 ou '' dependendo do tipo para evitar rejeição
+    const clean = JSON.parse(JSON.stringify(d, (k, v) => v === undefined ? undefined : v));
+    try {
+        await updateDoc(docR(c, id), clean);
+    } catch(e) {
+        // Se updateDoc falhar (ex: documento não existe ainda), usa setDoc com merge
+        await setDoc(docR(c, id), clean, { merge: true });
+    }
+};
 export const apiDelete = (c, id)     => deleteDoc(docR(c, id));
 
 // ── Estado Global ─────────────────────────────────────────────
