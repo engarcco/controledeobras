@@ -55,6 +55,24 @@ export function renderClienteDash(){
         }
     });
 
+    // ── Status de medição para o cliente ────────────────────────
+    // Regras:
+    //   Sem medições pendentes               → "Medições em Dia"
+    //   Tem medição pendente (não recebida)  → "Medição Pendente"
+    //   Tem medição com vencimento vencido   → "Medição em Atraso"
+    const medicoesPendentes = medicoes.filter(m => m.statusAdm !== 'recebido');
+    const hoje = now; // já calculado acima
+    let statusMedicao = 'em_dia'; // padrão
+    if(medicoesPendentes.length > 0){
+        // Verifica se alguma está vencida
+        const vencida = medicoesPendentes.some(m => {
+            if(!m.vencimento) return false;
+            const venc = parseDate(m.vencimento);
+            return venc && venc < hoje;
+        });
+        statusMedicao = vencida ? 'em_atraso' : 'pendente';
+    }
+
     // ── Avanço financeiro por módulo ──────────────────────────
     const mods = [...new Set(tasks.map(t => t.modulo))];
     const fatorDesc = vendaBruta > 0 ? contratoFinal / vendaBruta : 1;
@@ -200,18 +218,44 @@ export function renderClienteDash(){
         </div>
     </div>` : ''}
 
-    <!-- ══ ALERTA CRONOGRAMA ══ -->
-    ${maxAtraso > 0
-        ? `<div class="bg-red-50 border border-red-200 p-4 rounded-xl mb-5 flex items-start gap-3 shadow-sm">
-            <div class="bg-red-100 p-2 rounded-full text-arcco-red shrink-0 mt-0.5"><i data-lucide="alert-triangle" class="w-4 h-4"></i></div>
-            <div><h4 class="text-xs font-bold text-red-800 uppercase mb-0.5">Alerta de Cronograma</h4>
-            <p class="text-xs text-red-700">~<strong>${maxAtraso} dias de atraso</strong> em [${etapaAtrasada}]. A equipe da Arcco está atuando.</p></div>
-           </div>`
-        : `<div class="bg-green-50 border border-green-200 p-4 rounded-xl mb-5 flex items-start gap-3 shadow-sm">
-            <div class="bg-green-100 p-2 rounded-full text-green-600 shrink-0 mt-0.5"><i data-lucide="check-circle-2" class="w-4 h-4"></i></div>
-            <div><h4 class="text-xs font-bold text-green-800 uppercase mb-0.5">Cronograma em Dia</h4>
-            <p class="text-xs text-green-700">Sua obra está dentro do prazo sem atrasos críticos.</p></div>
-           </div>`}
+    <!-- ══ STATUS CRONOGRAMA + MEDIÇÃO LADO A LADO ══ -->
+    <div class="grid grid-cols-2 gap-4 mb-5">
+        <!-- Cronograma -->
+        ${maxAtraso > 0
+            ? `<div class="bg-red-50 border border-red-200 p-4 rounded-xl flex items-start gap-3 shadow-sm">
+                <div class="bg-red-100 p-2 rounded-full text-arcco-red shrink-0 mt-0.5"><i data-lucide="alert-triangle" class="w-4 h-4"></i></div>
+                <div><h4 class="text-[10px] font-bold text-red-800 uppercase mb-0.5">Cronograma</h4>
+                <p class="text-[10px] font-bold text-red-700">~${maxAtraso} dias de atraso</p>
+                <p class="text-[9px] text-red-600">${etapaAtrasada}</p></div>
+               </div>`
+            : `<div class="bg-green-50 border border-green-200 p-4 rounded-xl flex items-start gap-3 shadow-sm">
+                <div class="bg-green-100 p-2 rounded-full text-green-600 shrink-0 mt-0.5"><i data-lucide="check-circle-2" class="w-4 h-4"></i></div>
+                <div><h4 class="text-[10px] font-bold text-green-800 uppercase mb-0.5">Cronograma</h4>
+                <p class="text-[10px] font-bold text-green-700">Em dia</p>
+                <p class="text-[9px] text-green-600">Sem atrasos críticos</p></div>
+               </div>`}
+        <!-- Status Medição -->
+        ${statusMedicao === 'em_atraso'
+            ? `<div class="bg-red-50 border-2 border-red-400 p-4 rounded-xl flex items-start gap-3 shadow-sm">
+                <div class="bg-red-100 p-2 rounded-full text-arcco-red shrink-0 mt-0.5"><i data-lucide="clock-alert" class="w-4 h-4"></i></div>
+                <div><h4 class="text-[10px] font-bold text-red-800 uppercase mb-0.5">Medição</h4>
+                <p class="text-[10px] font-bold text-red-700">Em Atraso</p>
+                <p class="text-[9px] text-red-600">Pagamento vencido</p></div>
+               </div>`
+            : statusMedicao === 'pendente'
+            ? `<div class="bg-orange-50 border-2 border-arcco-orange p-4 rounded-xl flex items-start gap-3 shadow-sm">
+                <div class="bg-orange-100 p-2 rounded-full text-arcco-orange shrink-0 mt-0.5"><i data-lucide="clock" class="w-4 h-4"></i></div>
+                <div><h4 class="text-[10px] font-bold text-orange-800 uppercase mb-0.5">Medição</h4>
+                <p class="text-[10px] font-bold text-arcco-orange">Pendente</p>
+                <p class="text-[9px] text-orange-600">Aguardando pagamento</p></div>
+               </div>`
+            : `<div class="bg-green-50 border border-green-200 p-4 rounded-xl flex items-start gap-3 shadow-sm">
+                <div class="bg-green-100 p-2 rounded-full text-green-600 shrink-0 mt-0.5"><i data-lucide="check-circle-2" class="w-4 h-4"></i></div>
+                <div><h4 class="text-[10px] font-bold text-green-800 uppercase mb-0.5">Medição</h4>
+                <p class="text-[10px] font-bold text-green-700">Em dia</p>
+                <p class="text-[9px] text-green-600">Tudo quitado</p></div>
+               </div>`}
+    </div>
 
     <!-- ══ AVANÇO POR ETAPA (físico + financeiro) ══ -->
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
