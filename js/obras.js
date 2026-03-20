@@ -281,7 +281,8 @@ export function renderObrasFinalizadasGrid(){
 
 export const reativarObra = async (id) => {
     if(!confirm('Reativar esta obra? Ela voltará para o portfólio ativo.')) return;
-    await apiUpdate('obras', id, {status:'ativa', dataFim:null});
+    // Limpa custoFinal e obsFinal para não aparecer no histórico indevidamente
+    await apiUpdate('obras', id, {status:'ativa', dataFim:'', custoFinal:'', obsFinal:''});
     showToast('OBRA REATIVADA!');
 };
 
@@ -324,7 +325,7 @@ export function renderHistoricoIntelligence(){
     const rankModulo = Object.entries(moduloAtraso).sort((a,b)=>b[1]-a[1]).slice(0,8);
 
     // Obras com variação de custo
-    const obrasVariacao = todasObras.filter(o=>o.custoFinal).map(o=>{
+    const obrasVariacao = todasObras.filter(o=>o.custoFinal && o.status==='finalizada').map(o=>{
         const orcado=(o.tasks||[]).reduce((a,t)=>a+(parseFloat(t.valor)||0),0);
         return {...o, orcado, variacao:parseFloat(o.custoFinal)-orcado};
     }).sort((a,b)=>Math.abs(b.variacao)-Math.abs(a.variacao)).slice(0,5);
