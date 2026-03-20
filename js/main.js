@@ -76,10 +76,14 @@ import { renderClienteDash }   from './portal-cliente.js';
 // ── Offline ───────────────────────────────────────────────────
 import { salvarOffline, sincronizarDados, initOfflineListeners } from './offline.js';
 
-// ── Notificações Push ──────────────────────────────────────────
-import { initNotifications, notificarServicoConcluido,
-         notificarCheckin, notificarAtraso,
-         notificarGargalo, notificarCheckinPendente } from './notifications.js';
+// ── Notificações Push (desativado — será ativado na Etapa 2) ───
+// import { initNotifications, ... } from './notifications.js';
+const initNotifications         = () => {};
+const notificarServicoConcluido = () => {};
+const notificarCheckin          = () => {};
+const notificarAtraso           = () => {};
+const notificarGargalo          = () => {};
+const notificarCheckinPendente  = () => {};
 
 // ═══════════════════════════════════════════════════════════════
 // Monta window.APP — objeto público consumido pelo HTML inline
