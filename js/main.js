@@ -251,6 +251,13 @@ window.APP.renderListaGestores          = renderListaGestores;
 window.APP.renderObrasFinalizadasGrid   = renderObrasFinalizadasGrid;
 window.APP.renderHistoricoIntelligence  = renderHistoricoIntelligence;
 
+// ── Funções chamadas pelo ui.js (switchObraTab) e auth.js ─────
+// Estas PRECISAM estar expostas via window.APP para funcionar
+window.APP.renderMedicoes      = renderMedicoes;
+window.APP.renderMasterPonto   = renderMasterPonto;
+window.APP.renderCurvaS        = renderCurvaS;
+window.APP.STATE               = STATE;
+
 // ── Expõe funções de notificação no window.APP ───────────────
 window.APP.notificarServicoConcluido = notificarServicoConcluido;
 window.APP.notificarCheckin          = notificarCheckin;
