@@ -328,6 +328,26 @@ export function renderObrasFinalizadasGrid(){
     lucide.createIcons();
 }
 
+export const _toggleTaxaMat = (chk) => {
+    const divMat = document.getElementById('div-taxa-mat');
+    const bg     = document.getElementById('toggle-taxa-mat-bg');
+    const dot    = document.getElementById('toggle-taxa-mat-dot');
+    if(!divMat) return;
+    if(chk.checked){
+        divMat.classList.remove('hidden');
+        if(bg)  bg.style.background = '#ccff00';
+        if(dot) dot.style.left = '20px';
+    } else {
+        divMat.classList.add('hidden');
+        if(bg)  bg.style.background = '#d1d5db';
+        if(dot) dot.style.left = '4px';
+        const taxaMatEl = document.getElementById('det-edit-taxa-mat');
+        if(taxaMatEl) taxaMatEl.value = '';
+        const fId = STATE.currentObraId;
+        if(fId) updateObraConfig(fId);
+    }
+};
+
 export const reativarObra = async (id) => {
     if(!confirm('Reativar esta obra? Ela voltará para o portfólio ativo.')) return;
     await apiUpdate('obras', id, {status:'ativa', dataFim:null});
