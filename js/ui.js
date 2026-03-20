@@ -105,51 +105,22 @@ export const switchObraTab = (tab) => {
         active.classList.add('active-tab','border-arcco-lime','text-arcco-black');
         active.classList.remove('border-transparent','text-gray-400');
     }
-    // Renderiza o conteúdo da aba ao abrir.
-    // Se o STATE ainda não tem a obra (onSnapshot ainda não chegou),
-    // tenta novamente em 600ms — tempo suficiente para o Firebase responder.
-    const _renderTab = () => {
+    // Renderiza conteúdo da aba — com retry progressivo se STATE ainda não carregou
+    const _tryRender = (fn, attempts=0) => {
         const obraId = window.APP?.STATE?.currentObraId;
         const obra   = window.APP?.STATE?.obras?.find(o => o.firebaseId===obraId);
-        if(tab==='medicoes'){
-            // Mostra/oculta botão de Entrada conforme tipo de contrato
-            // ADM: entrada é rara — mostra só se toggle ativo
-            // Preço Fechado: sempre mostra
-            const obraId2 = window.APP?.STATE?.currentObraId;
-            const o2 = window.APP?.STATE?.obras?.find(x => x.firebaseId===obraId2);
-            const btnEntrada = document.getElementById('btn-registrar-entrada');
-            if(btnEntrada && o2){
-                const isAdm2 = o2.contrato==='ADMINISTRAÇÃO';
-                const temEntrada = parseFloat(o2.entrada||0) > 0;
-                // Para ADM: só mostra se já tiver entrada ou se o toggle estiver ativo
-                if(isAdm2 && !temEntrada){
-                    btnEntrada.classList.add('hidden');
-                } else {
-                    btnEntrada.classList.remove('hidden');
-                }
-            }
-            if(obra) window.APP?.renderMedicoes?.();
-            else setTimeout(() => window.APP?.renderMedicoes?.(), 600);
-        }
-        if(tab==='ponto'){
-            if(obra) window.APP?.renderMasterPonto?.();
-            else setTimeout(() => window.APP?.renderMasterPonto?.(), 600);
-        }
-        if(tab==='curvas'){
-            if(obra) window.APP?.renderCurvaS?.();
-            else setTimeout(() => window.APP?.renderCurvaS?.(), 600);
-        }
-        if(tab==='compras'){
-            if(obra) window.APP?.renderComprasList?.(obra);
-            else setTimeout(() => {
-                const o2 = window.APP?.STATE?.obras?.find(x => x.firebaseId===window.APP?.STATE?.currentObraId);
-                window.APP?.renderComprasList?.(o2);
-            }, 600);
-        }
+        if(obra){ fn(); }
+        else if(attempts < 8){ setTimeout(() => _tryRender(fn, attempts+1), 400); }
     };
-    _renderTab();
+    if(tab==='medicoes') _tryRender(() => window.APP?.renderMedicoes?.());
+    if(tab==='ponto')    _tryRender(() => window.APP?.renderMasterPonto?.());
+    if(tab==='curvas')   _tryRender(() => window.APP?.renderCurvaS?.());
+    if(tab==='compras')  _tryRender(() => {
+        const o = window.APP?.STATE?.obras?.find(x => x.firebaseId===window.APP?.STATE?.currentObraId);
+        window.APP?.renderComprasList?.(o);
+    });
     lucide.createIcons();
-};
+}
 window.switchObraTab = switchObraTab;
 
 // ── Forn tab switcher ─────────────────────────────────────────
