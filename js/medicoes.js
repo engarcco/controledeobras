@@ -230,12 +230,13 @@ export function renderMedicoes(){
                 ${lideresHtml}
             </div>`:''}
 
-            <!-- Rodapé -->
+            <!-- Rodapé: editar só aparece se NÃO estiver paga -->
             <div class="bg-gray-50 border-t border-gray-100 p-3 flex justify-between items-center">
+                ${m.statusAdm !== 'recebido' ? `
                 <button onclick="APP.editarMedicao('${m.id}')"
                     class="text-[10px] font-bold text-gray-500 hover:text-arcco-black uppercase flex items-center gap-1 border border-gray-300 rounded px-3 py-1.5 hover:bg-white transition-colors">
                     <i data-lucide="edit-3" class="w-3 h-3"></i> Editar Medição
-                </button>
+                </button>` : `<div></div>`}
                 <button onclick="APP.deleteMedicao('${m.id}')"
                     class="text-[10px] font-bold text-gray-400 hover:text-arcco-red uppercase flex items-center gap-1">
                     <i data-lucide="trash-2" class="w-3 h-3"></i> Excluir
@@ -257,8 +258,6 @@ export const openModalNovaMedicao = () => {
     document.getElementById('med-inicio').value = '';
     document.getElementById('med-fim').value    = '';
     document.getElementById('med-obs').value    = '';
-    const elVenc = document.getElementById('med-vencimento');
-    if(elVenc) elVenc.value = '';
 
     // ── Dois fatores aplicados em cascata ────────────────────────
     // 1. FATOR DESCONTO: reduz o valor contratado de cada serviço
@@ -561,7 +560,6 @@ export const saveMedicao = async () => {
         periodo:    document.getElementById('med-periodo').value,
         inicio:     document.getElementById('med-inicio').value,
         fim:        document.getElementById('med-fim').value,
-        vencimento: document.getElementById('med-vencimento')?.value||'',
         // Valores separados
         totalMO:         custoMOTotal,       // o que vai pagar os empreiteiros
         totalVenda:      totalVendaGlobal,   // receita da Arcco
@@ -591,8 +589,8 @@ export const saveMedicao = async () => {
         novaMedicao.id        = editingId;
         novaMedicao.statusAdm = original?.statusAdm || 'pendente';
         medicoesFinal = (o.medicoes||[]).map(x => x.id===editingId ? novaMedicao : x);
-        modal.removeAttribute('data-editing-id');
         showToast('MEDIÇÃO ATUALIZADA!');
+        modal.removeAttribute('data-editing-id');
     } else {
         medicoesFinal = [...(o.medicoes||[]), novaMedicao];
         showToast('MEDIÇÃO REGISTRADA!');
@@ -625,52 +623,64 @@ export const editarMedicao = (medId) => {
     if(!o) return;
     const m = (o.medicoes||[]).find(x => x.id===medId);
     if(!m) return;
+    // Guarda o ID ANTES de abrir o modal — assim o saveMedicao
+    // já encontra o data-editing-id mesmo que seja chamado logo após
+    const modal = document.getElementById('modal-nova-medicao');
+    if(modal) modal.setAttribute('data-editing-id', medId);
 
-    // Abre o modal normalmente (popula serviços, etc.)
+    // Abre o modal (popula lista de serviços)
     openModalNovaMedicao();
 
-    // Após renderizar, preenche os campos com os dados da medição existente
-    setTimeout(() => {
-        // Campos de cabeçalho
-        const elInicio = document.getElementById('med-inicio');
-        const elFim    = document.getElementById('med-fim');
-        const elObs    = document.getElementById('med-obs');
-        const elPeriodo= document.getElementById('med-periodo');
-        if(elInicio)  elInicio.value  = m.inicio||'';
-        if(elFim)     elFim.value     = m.fim||'';
-        if(elObs)     elObs.value     = m.obs||'';
-        if(elPeriodo) elPeriodo.value = m.periodo||'mensal';
+    // Preenche os campos após o modal renderizar
+    // Usa intervalo de polling para garantir que os checkboxes já existam no DOM
+    let tentativas = 0;
+    const _preencher = () => {
+        tentativas++;
+        const primeiroChk = document.querySelector('.med-srv-chk');
+        // Se os checkboxes ainda não renderizaram e temos tentativas, espera mais
+        if(!primeiroChk && tentativas < 10){
+            setTimeout(_preencher, 100);
+            return;
+        }
 
-        // Remarca os serviços e preenche % e retenção de cada um
+        // Campos de cabeçalho
+        const el = (id) => document.getElementById(id);
+        if(el('med-inicio'))    el('med-inicio').value    = m.inicio||'';
+        if(el('med-fim'))       el('med-fim').value       = m.fim||'';
+        if(el('med-obs'))       el('med-obs').value       = m.obs||'';
+        if(el('med-periodo'))   el('med-periodo').value   = m.periodo||'semanal';
+        if(el('med-vencimento'))el('med-vencimento').value= m.vencimento||'';
+
+        // Remarca os serviços com os % e retenções originais
         const srvsSalvos = (m.porLider||[]).flatMap(l => l.servicos||[]);
         srvsSalvos.forEach(srv => {
-            // Acha o checkbox pelo taskId
             const chk = document.querySelector(`.med-srv-chk[data-task-id="${srv.taskId}"]`);
-            if(!chk || chk.disabled) return;
+            if(!chk) return;
+            // Libera temporariamente se estiver desabilitado (pode ter sido medido antes)
+            const eraDisabled = chk.disabled;
+            chk.disabled = false;
             chk.checked = true;
-            APP._toggleCheckinObraRow?.(chk); // mostra os campos
-            // Aciona o toggle dos fields manualmente
+            // Mostra os campos de % e retenção
             const fields = chk.closest('.med-servico-row')?.querySelector('.med-srv-fields');
             if(fields){ fields.classList.remove('hidden'); fields.classList.add('flex'); }
-            // Preenche % executado e retenção
+            // Preenche os valores
             const pctInput = chk.closest('.med-servico-row')?.querySelector('.med-srv-pct');
             const retInput = chk.closest('.med-servico-row')?.querySelector('.med-srv-retencao');
-            if(pctInput) pctInput.value = srv.pct||0;
-            if(retInput) retInput.value = srv.retPct||0;
+            if(pctInput){ pctInput.value = srv.pct||0; pctInput.max = 100; } // libera o max para edição
+            if(retInput)  retInput.value = srv.retPct||0;
+            if(eraDisabled) chk.disabled = false; // mantém liberado para edição
         });
 
-        // Recalcula os totais com os valores preenchidos
-        APP.calcMedicaoTotal();
+        // Recalcula totais
+        APP.calcMedicaoTotal?.();
 
-        // Marca o id da medição sendo editada para o saveMedicao substituir em vez de criar nova
-        document.getElementById('modal-nova-medicao')?.setAttribute('data-editing-id', medId);
-
-        // Muda o título e botão do modal
-        const titulo = document.querySelector('#modal-nova-medicao .font-montserrat.font-bold.text-sm');
+        // Atualiza visual do modal para modo edição
+        const titulo = modal?.querySelector('.font-montserrat.font-bold.text-sm.uppercase.text-white');
         if(titulo) titulo.innerText = 'Editar Medição';
-        const btnSalvar = document.querySelector('#modal-nova-medicao button[onclick="APP.saveMedicao()"]');
-        if(btnSalvar) btnSalvar.innerText = 'Salvar Alterações';
-    }, 150);
+        const btnSalvar = modal?.querySelector('button[onclick="APP.saveMedicao()"]');
+        if(btnSalvar){ btnSalvar.innerText = 'Salvar Alterações'; }
+    };
+    setTimeout(_preencher, 200);
 };
 
 export const deleteMedicao = async (medId) => {
