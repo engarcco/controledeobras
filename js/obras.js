@@ -12,7 +12,7 @@
 
 import { STATE, apiAdd, apiUpdate, apiDelete, today, parseDate,
          fmtBRL, fmtDate, todayISO, sortModulos, MOD_COLORS } from './config.js';
-import { showToast, showMasterSection, switchObraTab } from './ui.js';
+import { showToast, showMasterSection, switchObraTab, closeModal } from './ui.js';
 
 // ── Obras Grid (lista de projetos na tela principal) ──────────
 export function renderMasterObrasGrid(){
