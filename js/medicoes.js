@@ -29,6 +29,36 @@ export function renderMedicoes(){
     const totalRetido      = medicoes.reduce((a,m) => a+(parseFloat(m.totalRetencao)||0),0);
     const totalMOPago      = medicoes.filter(m=>m.statusAdm==='recebido').reduce((a,m) => a+(parseFloat(m.totalMO)||0),0);
 
+    // Aviso de desconto ativo no topo da aba medições
+    const vendaBrutaRender = (o.tasks||[]).reduce((a,t)=>a+(parseFloat(t.valor_venda)||parseFloat(t.valor)||0),0);
+    const descontoRender   = parseFloat(o.desconto)||0;
+    const fatorRender      = vendaBrutaRender>0&&descontoRender>0 ? (vendaBrutaRender-descontoRender)/vendaBrutaRender : 1;
+
+    const avisoMedRender = descontoRender>0 ? `
+        <div class="bg-orange-50 border border-orange-200 rounded-xl p-4 flex items-start gap-3 mb-4">
+            <i data-lucide="tag" class="w-4 h-4 text-arcco-orange shrink-0 mt-0.5"></i>
+            <div>
+                <p class="text-[10px] font-bold text-arcco-orange uppercase">Desconto ativo nesta obra: ${fmtBRL(descontoRender)}</p>
+                <p class="text-[9px] text-gray-600 mt-0.5">
+                    Valores de venda nas medições são reduzidos para <strong>${(fatorRender*100).toFixed(2)}%</strong> do valor cadastrado.
+                    Total de venda ajustado: <strong>${fmtBRL(vendaBrutaRender - descontoRender)}</strong>
+                </p>
+            </div>
+        </div>` : '';
+
+    // Injeta o aviso acima do resumo
+    const resumoCont = document.getElementById('medicoes-resumo');
+    if(resumoCont && resumoCont.parentElement) {
+        let avisoEl = document.getElementById('medicoes-aviso-desconto');
+        if(!avisoEl){
+            avisoEl = document.createElement('div');
+            avisoEl.id = 'medicoes-aviso-desconto';
+            resumoCont.parentElement.insertBefore(avisoEl, resumoCont);
+        }
+        avisoEl.innerHTML = avisoMedRender;
+        if(descontoRender>0) lucide.createIcons();
+    }
+
     document.getElementById('medicoes-resumo').innerHTML = `
         <div class="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
             <p class="text-[9px] font-bold text-gray-400 uppercase tracking-widest">MO Pago Empreiteiros</p>
@@ -151,18 +181,45 @@ export const openModalNovaMedicao = () => {
     document.getElementById('med-fim').value    = '';
     document.getElementById('med-obs').value    = '';
 
+    // ── Fator de desconto proporcional ──────────────────────────
+    // Se a obra tem desconto, calcula o fator para ajustar cada serviço.
+    // Ex: obra de R$62.431 com desconto de R$2.431 → fator = 60.000/62.431 = 0,9611
+    // Cada serviço vale 96,11% do valor cadastrado nas medições.
+    const vendaBrutaTotal = tasks.reduce((a,t) => a+(parseFloat(t.valor_venda)||parseFloat(t.valor)||0),0);
+    const desconto        = parseFloat(o.desconto)||0;
+    const fatorDesconto   = (vendaBrutaTotal > 0 && desconto > 0)
+        ? Math.max(0, (vendaBrutaTotal - desconto) / vendaBrutaTotal)
+        : 1; // sem desconto = fator 1 (sem alteração)
+
+    // Mostra aviso no modal se houver desconto ativo
+    const avisoDesconto = desconto > 0 ? `
+        <div class="bg-orange-50 border border-orange-200 rounded-lg px-4 py-3 flex items-start gap-3 mb-1">
+            <i data-lucide="tag" class="w-4 h-4 text-arcco-orange shrink-0 mt-0.5"></i>
+            <div>
+                <p class="text-[10px] font-bold text-arcco-orange uppercase">Desconto aplicado nesta obra</p>
+                <p class="text-[9px] text-gray-600 mt-0.5">
+                    Desconto de <strong>${fmtBRL(desconto)}</strong> distribuído proporcionalmente.
+                    Fator: <strong>${(fatorDesconto*100).toFixed(2)}%</strong> do valor de cada serviço.
+                </p>
+            </div>
+        </div>` : '';
+
     // Agrupa tarefas por módulo para exibir no modal
     const mods = [...new Set(tasks.map(t => t.modulo))];
 
     document.getElementById('med-etapas-list').innerHTML = mods.length
-        ? mods.map(m => {
+        ? avisoDesconto + mods.map(m => {
             const mTasks = tasks.filter(t => t.modulo===m);
             const modId  = `mod-${m.replace(/\W/g,'')}`;
 
             // Lista de serviços individuais dentro do módulo
             const servicosHtml = mTasks.map((t,i) => {
-                const moServico    = parseFloat(t.valor_mo) || parseFloat(t.valor) || 0;
-                const vendaServico = parseFloat(t.valor_venda) || parseFloat(t.valor) || 0;
+                // Valores brutos do cadastro, depois ajustados pelo fator de desconto
+                const moServicoBruto    = parseFloat(t.valor_mo) || parseFloat(t.valor) || 0;
+                const vendaServicoBruto = parseFloat(t.valor_venda) || parseFloat(t.valor) || 0;
+                // Aplica fator: se desconto de R$2.431 numa obra de R$62.431 → fator=0,9611
+                const moServico    = moServicoBruto    * fatorDesconto;
+                const vendaServico = vendaServicoBruto * fatorDesconto;
 
                 // ── Calcula quanto JÁ foi medido deste serviço em medições anteriores ──
                 // Soma todos os pct deste task em todas as medições já salvas
@@ -199,7 +256,7 @@ export const openModalNovaMedicao = () => {
                         <label for="${tid}" class="flex-1 ${jaConcluido?'cursor-not-allowed':'cursor-pointer'}">
                             <p class="text-[10px] font-bold text-arcco-black uppercase leading-tight">${t.nome}</p>
                             <p class="text-[8px] font-bold text-gray-400 uppercase mt-0.5">
-                                ${t.forn||'Sem equipe'} • MO: ${fmtBRL(moServico)} • Venda: ${fmtBRL(vendaServico)}
+                                ${t.forn||'Sem equipe'} • MO: ${fmtBRL(moServico)} • Venda: ${fmtBRL(vendaServico)}${fatorDesconto<1?` <span class='text-arcco-orange'>(tabela: ${fmtBRL(vendaServicoBruto)})</span>`:''}
                             </p>
                             <!-- Barra de progresso de medição -->
                             <div class="flex items-center gap-2 mt-1.5">
