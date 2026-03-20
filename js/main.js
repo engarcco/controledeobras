@@ -37,7 +37,7 @@ import { renderMasterObrasGrid, openObraDetail,
 
 // ── Medições ─────────────────────────────────────────────────
 import { renderMedicoes, openModalNovaMedicao, calcMedicaoTotal,
-         saveMedicao, toggleStatusAdm, deleteMedicao, _limitarPct,
+         saveMedicao, toggleStatusAdm, deleteMedicao, _limitarPct, editarMedicao,
          saveEntrada, removerEntrada,
          openModalNovaDiaria, calcDiaria, saveDiaria, deleteDiaria } from './medicoes.js';
 
@@ -151,6 +151,7 @@ window.APP = {
     toggleStatusAdm,
     deleteMedicao,
     _limitarPct,
+    editarMedicao,
     saveEntrada,
     removerEntrada,
 
