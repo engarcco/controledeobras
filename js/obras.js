@@ -667,8 +667,20 @@ export function renderObraDetail(fId){
             .map(f => `<option value="${f.id}">${f.nome}</option>`).join('');
 
     const depSel = document.getElementById('task-dep');
+    // Ordena as tasks por módulo (numérico) para o select de dependência
+    const tasksSorted = [...tasks].sort((a, b) => {
+        const mA = (a.modulo||''), mB = (b.modulo||'');
+        const vA = mA.match(/^([\d.]+)/), vB = mB.match(/^([\d.]+)/);
+        if(vA && vB){
+            const pA = vA[1].split('.').map(Number), pB = vB[1].split('.').map(Number);
+            for(let i=0;i<Math.max(pA.length,pB.length);i++){
+                const d=(pA[i]||0)-(pB[i]||0); if(d!==0) return d;
+            }
+        }
+        return mA.localeCompare(mB) || (a.nome||'').localeCompare(b.nome||'');
+    });
     depSel.innerHTML = '<option value="">NENHUMA (INÍCIO LIVRE)</option>' +
-        tasks.map(t => `<option value="${t.id}">${t.modulo} – ${t.nome}</option>`).join('');
+        tasksSorted.map(t => `<option value="${t.id}">${t.modulo} – ${t.nome}</option>`).join('');
 
     let mods = [...(o.modulos||[])];
     [...new Set(tasks.map(t => t.modulo))].forEach(m => { if(!mods.includes(m)) mods.push(m); });
