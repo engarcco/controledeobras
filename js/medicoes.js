@@ -31,20 +31,28 @@ export function renderMedicoes(){
     // Entrada/sinal já pago pelo cliente (descontado das medições futuras)
     const entrada          = parseFloat(o.entrada)||0;
 
-    // Aviso de desconto ativo no topo da aba medições
+    // Aviso de ajustes ativos no topo da aba medições (desconto + entrada)
     const vendaBrutaRender = (o.tasks||[]).reduce((a,t)=>a+(parseFloat(t.valor_venda)||parseFloat(t.valor)||0),0);
     const descontoRender   = parseFloat(o.desconto)||0;
-    const fatorRender      = vendaBrutaRender>0&&descontoRender>0 ? (vendaBrutaRender-descontoRender)/vendaBrutaRender : 1;
+    const entradaRender    = parseFloat(o.entrada)||0;
+    const valorAMedirRend  = Math.max(0, vendaBrutaRender - descontoRender - entradaRender);
+    const fatorRender      = vendaBrutaRender > 0 ? valorAMedirRend / vendaBrutaRender : 1;
+    const temAjusteRender  = descontoRender > 0 || entradaRender > 0;
 
-    const avisoMedRender = descontoRender>0 ? `
+    const avisoMedRender = temAjusteRender ? `
         <div class="bg-orange-50 border border-orange-200 rounded-xl p-4 flex items-start gap-3 mb-4">
             <i data-lucide="tag" class="w-4 h-4 text-arcco-orange shrink-0 mt-0.5"></i>
-            <div>
-                <p class="text-[10px] font-bold text-arcco-orange uppercase">Desconto ativo nesta obra: ${fmtBRL(descontoRender)}</p>
-                <p class="text-[9px] text-gray-600 mt-0.5">
-                    Valores de venda nas medições são reduzidos para <strong>${(fatorRender*100).toFixed(2)}%</strong> do valor cadastrado.
-                    Total de venda ajustado: <strong>${fmtBRL(vendaBrutaRender - descontoRender)}</strong>
-                </p>
+            <div class="flex-1">
+                <p class="text-[10px] font-bold text-arcco-orange uppercase">Ajustes ativos — valores nas medições são proporcionais</p>
+                <div class="text-[9px] text-gray-600 mt-1 space-y-0.5">
+                    <p>Valor bruto: <strong>${fmtBRL(vendaBrutaRender)}</strong></p>
+                    ${descontoRender>0 ? `<p>(-) Desconto: <strong class="text-arcco-orange">- ${fmtBRL(descontoRender)}</strong></p>` : ''}
+                    ${entradaRender>0  ? `<p>(-) Entrada já paga: <strong class="text-green-600">- ${fmtBRL(entradaRender)}</strong></p>` : ''}
+                    <p class="border-t border-orange-200 pt-1 mt-1 font-bold">
+                        A medir via medições: ${fmtBRL(valorAMedirRend)}
+                        (fator: ${(fatorRender*100).toFixed(2)}%)
+                    </p>
+                </div>
             </div>
         </div>` : '';
 
@@ -232,26 +240,37 @@ export const openModalNovaMedicao = () => {
     document.getElementById('med-fim').value    = '';
     document.getElementById('med-obs').value    = '';
 
-    // ── Fator de desconto proporcional ──────────────────────────
-    // Se a obra tem desconto, calcula o fator para ajustar cada serviço.
-    // Ex: obra de R$62.431 com desconto de R$2.431 → fator = 60.000/62.431 = 0,9611
-    // Cada serviço vale 96,11% do valor cadastrado nas medições.
+    // ── Fator combinado: desconto + entrada ─────────────────────
+    // Ambos reduzem o valor que cada serviço representa nas medições.
+    // Ex: obra R$62.431, desconto R$2.431, entrada R$5.000
+    //   → valor a medir via medições = 62.431 - 2.431 - 5.000 = 55.000
+    //   → fator = 55.000 / 62.431 = 0,8809
+    // Cada serviço vale 88,09% do valor cadastrado nas medições.
     const vendaBrutaTotal = tasks.reduce((a,t) => a+(parseFloat(t.valor_venda)||parseFloat(t.valor)||0),0);
     const desconto        = parseFloat(o.desconto)||0;
-    const fatorDesconto   = (vendaBrutaTotal > 0 && desconto > 0)
-        ? Math.max(0, (vendaBrutaTotal - desconto) / vendaBrutaTotal)
-        : 1; // sem desconto = fator 1 (sem alteração)
+    const entradaPaga     = parseFloat(o.entrada)||0;
+    // Total a ser medido via medições = bruto - desconto - entrada
+    const valorAMedir     = Math.max(0, vendaBrutaTotal - desconto - entradaPaga);
+    const fatorDesconto   = vendaBrutaTotal > 0
+        ? valorAMedir / vendaBrutaTotal
+        : 1;
 
-    // Mostra aviso no modal se houver desconto ativo
-    const avisoDesconto = desconto > 0 ? `
+    // Monta o aviso para exibir no topo do modal
+    const temAjuste = desconto > 0 || entradaPaga > 0;
+    const avisoDesconto = temAjuste ? `
         <div class="bg-orange-50 border border-orange-200 rounded-lg px-4 py-3 flex items-start gap-3 mb-1">
             <i data-lucide="tag" class="w-4 h-4 text-arcco-orange shrink-0 mt-0.5"></i>
             <div>
-                <p class="text-[10px] font-bold text-arcco-orange uppercase">Desconto aplicado nesta obra</p>
-                <p class="text-[9px] text-gray-600 mt-0.5">
-                    Desconto de <strong>${fmtBRL(desconto)}</strong> distribuído proporcionalmente.
-                    Fator: <strong>${(fatorDesconto*100).toFixed(2)}%</strong> do valor de cada serviço.
-                </p>
+                <p class="text-[10px] font-bold text-arcco-orange uppercase">Ajustes ativos nesta obra</p>
+                <div class="text-[9px] text-gray-600 mt-1 space-y-0.5">
+                    <p>Valor bruto dos serviços: <strong>${fmtBRL(vendaBrutaTotal)}</strong></p>
+                    ${desconto>0    ? `<p>(-) Desconto: <strong class="text-arcco-orange">- ${fmtBRL(desconto)}</strong></p>` : ''}
+                    ${entradaPaga>0 ? `<p>(-) Entrada já paga: <strong class="text-green-600">- ${fmtBRL(entradaPaga)}</strong></p>` : ''}
+                    <p class="border-t border-orange-200 pt-1 mt-1">
+                        Valor a medir via medições: <strong>${fmtBRL(valorAMedir)}</strong>
+                        (fator: <strong>${(fatorDesconto*100).toFixed(2)}%</strong>)
+                    </p>
+                </div>
             </div>
         </div>` : '';
 
