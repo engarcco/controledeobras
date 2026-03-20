@@ -252,6 +252,44 @@
                         <h3 id="det-obra-nome" class="font-montserrat font-black-italic text-3xl text-arcco-black tracking-tighter">NOME DA OBRA</h3>
                         <p id="det-obra-cliente" class="text-sm text-gray-500 font-bold uppercase mt-1">Cliente: ---</p>
                         <div id="det-config-contrato" class="mt-5 p-4 bg-gray-50 border border-gray-200 rounded-lg flex flex-wrap items-end gap-4 max-w-2xl"></div>
+                        <!-- Configurações de horário de obra -->
+                        <div id="det-config-horario" class="mt-3 p-4 bg-gray-50 border border-gray-200 rounded-lg max-w-2xl hidden">
+                            <p class="text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-3 flex items-center gap-1">
+                                <i data-lucide="clock" class="w-3 h-3"></i> Configurações de Horário
+                            </p>
+                            <div class="flex flex-wrap items-end gap-4">
+                                <!-- Toggle Sábado -->
+                                <label class="flex items-center gap-2 cursor-pointer select-none">
+                                    <div class="relative w-9 h-5">
+                                        <input type="checkbox" id="toggle-sabado" class="sr-only" onchange="APP.saveHorarioObra()">
+                                        <div id="toggle-sabado-bg" class="w-9 h-5 rounded-full transition-all bg-gray-300"></div>
+                                        <div id="toggle-sabado-dot" class="absolute top-1 left-1 w-3 h-3 bg-white rounded-full shadow transition-all"></div>
+                                    </div>
+                                    <span class="text-[10px] font-bold text-gray-600 uppercase">Trabalha Sábados?</span>
+                                </label>
+                                <!-- Toggle Noturno -->
+                                <label class="flex items-center gap-2 cursor-pointer select-none">
+                                    <div class="relative w-9 h-5">
+                                        <input type="checkbox" id="toggle-noturno" class="sr-only" onchange="APP.onToggleNoturno()">
+                                        <div id="toggle-noturno-bg" class="w-9 h-5 rounded-full transition-all bg-gray-300"></div>
+                                        <div id="toggle-noturno-dot" class="absolute top-1 left-1 w-3 h-3 bg-white rounded-full shadow transition-all"></div>
+                                    </div>
+                                    <span class="text-[10px] font-bold text-gray-600 uppercase">Obra Noturna?</span>
+                                </label>
+                                <!-- Horário noturno — aparece quando toggle ativo -->
+                                <div id="div-horario-noturno" class="hidden flex items-center gap-2">
+                                    <div>
+                                        <label class="text-[9px] font-bold text-gray-500 uppercase block mb-1">Das</label>
+                                        <input type="time" id="noturno-inicio" class="w-24 text-xs font-bold" value="22:00" onchange="APP.saveHorarioObra()">
+                                    </div>
+                                    <span class="text-[10px] font-bold text-gray-400 mt-4">às</span>
+                                    <div>
+                                        <label class="text-[9px] font-bold text-gray-500 uppercase block mb-1">Até</label>
+                                        <input type="time" id="noturno-fim" class="w-24 text-xs font-bold" value="06:00" onchange="APP.saveHorarioObra()">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     <div id="det-financeiro-container" class="grid grid-cols-2 lg:grid-cols-3 gap-3 w-full lg:w-auto shrink-0"></div>
                 </div>
@@ -476,7 +514,7 @@
                                 📅 Datas do Serviço
                             </p>
 
-                            <!-- Início e Fim lado a lado, campos grandes -->
+                            <!-- Início + Duração + Fim calculado -->
                             <div class="grid grid-cols-2 gap-4">
                                 <div>
                                     <label class="text-[10px] font-bold text-blue-600 uppercase tracking-wider block mb-1 flex items-center gap-1">
@@ -484,15 +522,28 @@
                                     </label>
                                     <input type="date" id="task-inicio"
                                         class="font-bold text-blue-800 bg-blue-50 border-blue-300"
-                                        onchange="APP.updateInicioStyle(this); APP.calcPERT()">
+                                        onchange="APP.updateInicioStyle(this); APP.calcFimPorDuracao(); APP.calcPERT()">
                                 </div>
                                 <div>
-                                    <label class="text-[10px] font-bold text-gray-700 uppercase tracking-wider block mb-1 flex items-center gap-1">
-                                        <i data-lucide="flag" class="w-3.5 h-3.5"></i> Data de Fim (Previsto)
+                                    <label class="text-[10px] font-bold text-green-700 uppercase tracking-wider block mb-1 flex items-center gap-1">
+                                        <i data-lucide="timer" class="w-3.5 h-3.5"></i> Duração (dias úteis)
+                                    </label>
+                                    <input type="number" id="task-duracao" min="1" step="1" placeholder="Ex: 5"
+                                        class="font-bold text-green-800 bg-green-50 border-green-300"
+                                        oninput="APP.calcFimPorDuracao()">
+                                </div>
+                            </div>
+                            <!-- Data de Fim calculada (readonly, editável se necessário) -->
+                            <div class="flex items-end gap-3">
+                                <div class="flex-1">
+                                    <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1 flex items-center gap-2">
+                                        <i data-lucide="flag" class="w-3.5 h-3.5 text-arcco-orange"></i> 
+                                        Data de Fim (calculada)
+                                        <span class="text-[8px] text-gray-400 normal-case font-normal">— edite se necessário</span>
                                     </label>
                                     <input type="date" id="task-fim"
-                                        class="font-bold text-arcco-black"
-                                        onchange="APP.calcPERT()">
+                                        class="font-bold text-arcco-black bg-orange-50 border-orange-200"
+                                        onchange="APP.calcDuracaoPorFim(); APP.calcPERT()">
                                 </div>
                             </div>
 
@@ -907,7 +958,24 @@
 </div>
 
 <!-- MODAL: NOVA COMPRA -->
-
+<div id="modal-nova-compra" class="modal-overlay fixed inset-0 bg-black/70 hidden z-[500] items-center justify-center p-4">
+    <div class="bg-white rounded-xl w-full max-w-md shadow-2xl overflow-hidden">
+        <div class="bg-arcco-black border-b border-gray-800 p-5 flex justify-between items-center">
+            <h4 class="font-montserrat font-bold text-sm uppercase text-white">Registrar Compra</h4>
+            <button onclick="APP.closeModal()" class="text-gray-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+        </div>
+        <div class="p-6 space-y-4">
+            <p class="text-[10px] uppercase text-gray-500 font-bold bg-gray-50 p-3 rounded border border-gray-200">Lançamentos de parceiros requerem aprovação da Arcco.</p>
+            <div><label class="text-[10px] font-bold text-gray-400 uppercase">Item / Descrição</label><input type="text" id="compra-desc" class="mt-1 font-bold"></div>
+            <div class="grid grid-cols-2 gap-4">
+                <div><label class="text-[10px] font-bold text-gray-400 uppercase">Valor Pago (R$)</label><input type="number" id="compra-valor" class="mt-1 font-bold"></div>
+                <div><label class="text-[10px] font-bold text-gray-400 uppercase">Data</label><input type="date" id="compra-data" class="mt-1"></div>
+            </div>
+            <div><label class="text-[10px] font-bold text-gray-400 uppercase flex items-center gap-1"><i data-lucide="link" class="w-3 h-3"></i> Link do Comprovante</label><input type="url" id="compra-link" class="mt-1 text-xs"></div>
+            <button onclick="APP.saveNovaCompra()" class="w-full bg-arcco-black text-white font-montserrat font-bold uppercase py-4 rounded-lg mt-6 hover:bg-gray-800">Adicionar Despesa</button>
+        </div>
+    </div>
+</div>
 
 <!-- MODAL: DUPLICAR OBRA — permite editar nome e cliente antes de confirmar -->
 <div id="modal-duplicar-obra" class="modal-overlay fixed inset-0 bg-black/70 hidden z-[500] items-center justify-center p-4">
@@ -1127,6 +1195,94 @@
 <!-- ============================================================ -->
 <!-- NOVO: MODAL NOVA MEDIÇÃO -->
 <!-- ============================================================ -->
+<div id="modal-nova-medicao" class="modal-overlay fixed inset-0 bg-black/70 hidden z-[500] items-center justify-center p-4">
+    <div class="bg-white rounded-xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+        <div class="bg-arcco-black border-b border-gray-800 p-5 flex justify-between items-center shrink-0">
+            <h4 class="font-montserrat font-bold text-sm uppercase text-white flex items-center gap-2">
+                <i data-lucide="wallet" class="w-4 h-4 text-arcco-lime"></i> Nova Medição / Ciclo de Pagamento
+            </h4>
+            <button onclick="APP.closeModal()" class="text-gray-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+        </div>
+        <div class="p-6 space-y-5 overflow-y-auto">
+            <p class="text-[10px] font-bold text-gray-500 uppercase bg-gray-50 p-3 rounded border border-gray-200">
+                Registre o ciclo de medição (semanal ou quinzenal). O valor da ADM será calculado automaticamente sobre o custo medido.
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label class="text-[10px] font-bold text-gray-500 uppercase">Período</label>
+                    <select id="med-periodo" class="mt-1 font-bold text-arcco-black">
+                        <option value="semanal">Semanal</option>
+                        <option value="quinzenal">Quinzenal</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold text-gray-500 uppercase">Data Início do Ciclo</label>
+                    <input type="date" id="med-inicio" class="mt-1">
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold text-gray-500 uppercase">Data Fim do Ciclo</label>
+                    <input type="date" id="med-fim" class="mt-1">
+                </div>
+            </div>
+
+            <!-- Etapas medidas -->
+            <div>
+                <label class="text-[10px] font-bold text-gray-500 uppercase block mb-2">Etapas Executadas neste Ciclo</label>
+                <div id="med-etapas-list" class="space-y-2 max-h-60 overflow-y-auto pr-1"></div>
+            </div>
+
+            <!-- Diárias do período -->
+            <div>
+                <label class="text-[10px] font-bold text-gray-500 uppercase block mb-2">Diárias Pagas neste Ciclo</label>
+                <div id="med-diarias-list" class="space-y-2 max-h-48 overflow-y-auto pr-1 bg-gray-50 p-3 rounded border border-gray-200">
+                    <p class="text-[10px] text-gray-400 font-bold uppercase text-center">Nenhuma diária lançada ainda para esta obra.</p>
+                </div>
+                <div class="mt-2 flex justify-between items-center bg-orange-50 p-3 rounded border border-orange-200">
+                    <span class="text-[10px] font-bold text-orange-700 uppercase">Total de Diárias Pagas:</span>
+                    <span id="med-total-diarias" class="font-montserrat font-bold text-sm text-orange-700">R$ 0,00</span>
+                </div>
+            </div>
+
+            <!-- Totais calculados -->
+            <div class="bg-arcco-black p-5 rounded-xl space-y-3">
+                <div class="flex justify-between items-center">
+                    <span class="text-[10px] font-bold text-gray-400 uppercase">MO a Pagar Empreiteiros:</span>
+                    <span id="med-custo-display" class="font-montserrat font-bold text-sm text-white">R$ 0,00</span>
+                </div>
+                <div class="flex justify-between items-center border-t border-gray-700 pt-3">
+                    <span class="text-[10px] font-bold text-gray-400 uppercase">Venda / Receita Arcco:</span>
+                    <span id="med-venda-display" class="font-montserrat font-bold text-sm text-arcco-lime">R$ 0,00</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-[10px] font-bold text-gray-400 uppercase">Margem Arcco (Venda − MO):</span>
+                    <span id="med-margem-display" class="font-montserrat font-bold text-sm text-arcco-lime">R$ 0,00</span>
+                </div>
+                <div class="flex justify-between items-center border-t border-gray-700 pt-3">
+                    <span class="text-[10px] font-bold text-gray-400 uppercase">ADM / Diárias:</span>
+                    <span id="med-adm-display" class="font-montserrat font-bold text-sm text-arcco-lime">R$ 0,00</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-[10px] font-bold text-blue-400 uppercase">Retenção (garantia):</span>
+                    <span id="med-retencao-display" class="font-montserrat font-bold text-sm text-blue-400">R$ 0,00</span>
+                </div>
+                <div class="flex justify-between items-center border-t border-gray-700 pt-3">
+                    <span class="text-xs font-bold text-white uppercase">Total Líquido a Receber:</span>
+                    <span id="med-total-display" class="font-montserrat font-black-italic text-xl text-arcco-lime">R$ 0,00</span>
+                </div>
+            </div>
+
+            <div>
+                <label class="text-[10px] font-bold text-gray-500 uppercase">Observações</label>
+                <textarea id="med-obs" class="mt-1 h-16" placeholder="Ex: Chuvas atrasaram 2 dias..."></textarea>
+            </div>
+        </div>
+        <div class="p-5 border-t border-gray-200 bg-gray-50 shrink-0">
+            <button onclick="APP.saveMedicao()" class="w-full bg-arcco-lime text-arcco-black font-montserrat font-bold uppercase py-4 rounded-lg shadow hover:brightness-95">Registrar Medição</button>
+        </div>
+    </div>
+</div>
+
 <!-- ============================================================ -->
 <!-- NOVO: MODAL LANÇAR DIÁRIA -->
 <!-- ============================================================ -->
@@ -1178,6 +1334,22 @@
 <!-- ============================================================ -->
 <!-- NOVO: MODAL CHECK-IN (MEMBRO / LÍDER) -->
 <!-- ============================================================ -->
+<div id="modal-checkin" class="modal-overlay fixed inset-0 bg-black/70 hidden z-[500] items-center justify-center p-4">
+    <div class="bg-white rounded-xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+        <div class="bg-arcco-black border-b border-gray-800 p-5 flex justify-between items-center shrink-0">
+            <h4 class="font-montserrat font-bold text-sm uppercase text-white flex items-center gap-2">
+                <i data-lucide="fingerprint" class="w-4 h-4 text-arcco-lime"></i> Registrar Presença
+            </h4>
+            <button onclick="APP.closeModal()" class="text-gray-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+        </div>
+        <!-- corpo dinâmico injetado por JS -->
+        <div id="checkin-modal-body" class="p-6 space-y-4 overflow-y-auto flex-1"></div>
+        <div class="p-5 border-t border-gray-200 bg-gray-50 shrink-0">
+            <button onclick="APP.saveCheckin()" class="w-full bg-arcco-lime text-arcco-black font-montserrat font-bold uppercase py-4 rounded-lg shadow hover:brightness-95">Confirmar Presença</button>
+        </div>
+    </div>
+</div>
+
 <!-- MODAL: FINALIZAR OBRA -->
 <div id="modal-finalizar-obra" class="modal-overlay fixed inset-0 bg-black/70 hidden z-[500] items-center justify-center p-4">
     <div class="bg-white rounded-xl w-full max-w-md shadow-2xl overflow-hidden">
@@ -1276,135 +1448,6 @@
 </div>
 
 <script type="module" src="js/main.js"></script>
-
-
-<!-- MODAL COMPRA — fora de qualquer section para funcionar em todas as views -->
-<div id="modal-nova-compra" class="modal-overlay fixed inset-0 bg-black/70 hidden z-[500] items-center justify-center p-4">
-    <div class="bg-white rounded-xl w-full max-w-md shadow-2xl overflow-hidden">
-        <div class="bg-arcco-black border-b border-gray-800 p-5 flex justify-between items-center">
-            <h4 class="font-montserrat font-bold text-sm uppercase text-white">Registrar Compra</h4>
-            <button onclick="APP.closeModal()" class="text-gray-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
-        </div>
-        <div class="p-6 space-y-4">
-            <p class="text-[10px] uppercase text-gray-500 font-bold bg-gray-50 p-3 rounded border border-gray-200">Lançamentos de parceiros requerem aprovação da Arcco.</p>
-            <div><label class="text-[10px] font-bold text-gray-400 uppercase">Item / Descrição</label><input type="text" id="compra-desc" class="mt-1 font-bold"></div>
-            <div class="grid grid-cols-2 gap-4">
-                <div><label class="text-[10px] font-bold text-gray-400 uppercase">Valor Pago (R$)</label><input type="number" id="compra-valor" class="mt-1 font-bold"></div>
-                <div><label class="text-[10px] font-bold text-gray-400 uppercase">Data</label><input type="date" id="compra-data" class="mt-1"></div>
-            </div>
-            <div><label class="text-[10px] font-bold text-gray-400 uppercase flex items-center gap-1"><i data-lucide="link" class="w-3 h-3"></i> Link do Comprovante</label><input type="url" id="compra-link" class="mt-1 text-xs"></div>
-            <button onclick="APP.saveNovaCompra()" class="w-full bg-arcco-black text-white font-montserrat font-bold uppercase py-4 rounded-lg mt-6 hover:bg-gray-800">Adicionar Despesa</button>
-        </div>
-    </div>
-</div>
-
-
-<!-- MODALS — movidos para fora de sections para funcionar em todas as views -->
-<div id="modal-checkin" class="modal-overlay fixed inset-0 bg-black/70 hidden z-[500] items-center justify-center p-4">
-    <div class="bg-white rounded-xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-        <div class="bg-arcco-black border-b border-gray-800 p-5 flex justify-between items-center shrink-0">
-            <h4 class="font-montserrat font-bold text-sm uppercase text-white flex items-center gap-2">
-                <i data-lucide="fingerprint" class="w-4 h-4 text-arcco-lime"></i> Registrar Presença
-            </h4>
-            <button onclick="APP.closeModal()" class="text-gray-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
-        </div>
-        <!-- corpo dinâmico injetado por JS -->
-        <div id="checkin-modal-body" class="p-6 space-y-4 overflow-y-auto flex-1"></div>
-        <div class="p-5 border-t border-gray-200 bg-gray-50 shrink-0">
-            <button onclick="APP.saveCheckin()" class="w-full bg-arcco-lime text-arcco-black font-montserrat font-bold uppercase py-4 rounded-lg shadow hover:brightness-95">Confirmar Presença</button>
-        </div>
-    </div>
-</div>
-
-
-<div id="modal-nova-medicao" class="modal-overlay fixed inset-0 bg-black/70 hidden z-[500] items-center justify-center p-4">
-    <div class="bg-white rounded-xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-        <div class="bg-arcco-black border-b border-gray-800 p-5 flex justify-between items-center shrink-0">
-            <h4 class="font-montserrat font-bold text-sm uppercase text-white flex items-center gap-2">
-                <i data-lucide="wallet" class="w-4 h-4 text-arcco-lime"></i> Nova Medição / Ciclo de Pagamento
-            </h4>
-            <button onclick="APP.closeModal()" class="text-gray-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
-        </div>
-        <div class="p-6 space-y-5 overflow-y-auto">
-            <p class="text-[10px] font-bold text-gray-500 uppercase bg-gray-50 p-3 rounded border border-gray-200">
-                Registre o ciclo de medição (semanal ou quinzenal). O valor da ADM será calculado automaticamente sobre o custo medido.
-            </p>
-
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                    <label class="text-[10px] font-bold text-gray-500 uppercase">Período</label>
-                    <select id="med-periodo" class="mt-1 font-bold text-arcco-black">
-                        <option value="semanal">Semanal</option>
-                        <option value="quinzenal">Quinzenal</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="text-[10px] font-bold text-gray-500 uppercase">Data Início do Ciclo</label>
-                    <input type="date" id="med-inicio" class="mt-1">
-                </div>
-                <div>
-                    <label class="text-[10px] font-bold text-gray-500 uppercase">Data Fim do Ciclo</label>
-                    <input type="date" id="med-fim" class="mt-1">
-                </div>
-            </div>
-
-            <!-- Etapas medidas -->
-            <div>
-                <label class="text-[10px] font-bold text-gray-500 uppercase block mb-2">Etapas Executadas neste Ciclo</label>
-                <div id="med-etapas-list" class="space-y-2 max-h-60 overflow-y-auto pr-1"></div>
-            </div>
-
-            <!-- Diárias do período -->
-            <div>
-                <label class="text-[10px] font-bold text-gray-500 uppercase block mb-2">Diárias Pagas neste Ciclo</label>
-                <div id="med-diarias-list" class="space-y-2 max-h-48 overflow-y-auto pr-1 bg-gray-50 p-3 rounded border border-gray-200">
-                    <p class="text-[10px] text-gray-400 font-bold uppercase text-center">Nenhuma diária lançada ainda para esta obra.</p>
-                </div>
-                <div class="mt-2 flex justify-between items-center bg-orange-50 p-3 rounded border border-orange-200">
-                    <span class="text-[10px] font-bold text-orange-700 uppercase">Total de Diárias Pagas:</span>
-                    <span id="med-total-diarias" class="font-montserrat font-bold text-sm text-orange-700">R$ 0,00</span>
-                </div>
-            </div>
-
-            <!-- Totais calculados -->
-            <div class="bg-arcco-black p-5 rounded-xl space-y-3">
-                <div class="flex justify-between items-center">
-                    <span class="text-[10px] font-bold text-gray-400 uppercase">MO a Pagar Empreiteiros:</span>
-                    <span id="med-custo-display" class="font-montserrat font-bold text-sm text-white">R$ 0,00</span>
-                </div>
-                <div class="flex justify-between items-center border-t border-gray-700 pt-3">
-                    <span class="text-[10px] font-bold text-gray-400 uppercase">Venda / Receita Arcco:</span>
-                    <span id="med-venda-display" class="font-montserrat font-bold text-sm text-arcco-lime">R$ 0,00</span>
-                </div>
-                <div class="flex justify-between items-center">
-                    <span class="text-[10px] font-bold text-gray-400 uppercase">Margem Arcco (Venda − MO):</span>
-                    <span id="med-margem-display" class="font-montserrat font-bold text-sm text-arcco-lime">R$ 0,00</span>
-                </div>
-                <div class="flex justify-between items-center border-t border-gray-700 pt-3">
-                    <span class="text-[10px] font-bold text-gray-400 uppercase">ADM / Diárias:</span>
-                    <span id="med-adm-display" class="font-montserrat font-bold text-sm text-arcco-lime">R$ 0,00</span>
-                </div>
-                <div class="flex justify-between items-center">
-                    <span class="text-[10px] font-bold text-blue-400 uppercase">Retenção (garantia):</span>
-                    <span id="med-retencao-display" class="font-montserrat font-bold text-sm text-blue-400">R$ 0,00</span>
-                </div>
-                <div class="flex justify-between items-center border-t border-gray-700 pt-3">
-                    <span class="text-xs font-bold text-white uppercase">Total Líquido a Receber:</span>
-                    <span id="med-total-display" class="font-montserrat font-black-italic text-xl text-arcco-lime">R$ 0,00</span>
-                </div>
-            </div>
-
-            <div>
-                <label class="text-[10px] font-bold text-gray-500 uppercase">Observações</label>
-                <textarea id="med-obs" class="mt-1 h-16" placeholder="Ex: Chuvas atrasaram 2 dias..."></textarea>
-            </div>
-        </div>
-        <div class="p-5 border-t border-gray-200 bg-gray-50 shrink-0">
-            <button onclick="APP.saveMedicao()" class="w-full bg-arcco-lime text-arcco-black font-montserrat font-bold uppercase py-4 rounded-lg shadow hover:brightness-95">Registrar Medição</button>
-        </div>
-    </div>
-</div>
-
 
 </body>
 </html>
