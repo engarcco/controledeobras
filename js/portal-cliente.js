@@ -1,36 +1,10 @@
-// Calcula e monta o bloco financeiro para contratos de Preço Fechado
-// Aplica o desconto configurado pelo gestor sobre o total de venda
-function _blocoFinanceiroCliente(o, tasks, done){
-    const desconto   = parseFloat(o.desconto) || 0;
-    const vendaBruta = tasks.reduce((a,t) => a + (parseFloat(t.valor_venda)||parseFloat(t.valor)||0), 0);
-    const vendaFinal = Math.max(0, vendaBruta - desconto);
-
-    // Valor executado proporcional ao desconto
-    const fator        = vendaBruta > 0 ? vendaFinal / vendaBruta : 1;
-    const vendaFeita   = done.reduce((a,t) => a + (parseFloat(t.valor_venda)||parseFloat(t.valor)||0), 0) * fator;
-
-    return `
-    <div class="mt-6 space-y-3">
-        <!-- Valor do Contrato em destaque -->
-        <div class="bg-arcco-black rounded-xl p-5 text-center">
-            <p class="text-[9px] font-bold uppercase text-gray-400 tracking-widest">Valor do Contrato</p>
-            <p class="font-montserrat font-black-italic text-3xl text-arcco-lime mt-1">${fmtBRL(vendaFinal)}</p>
-            ${desconto > 0 ? `
-            <p class="text-[9px] font-bold text-gray-400 uppercase mt-2">
-                Tabela: ${fmtBRL(vendaBruta)}
-                <span class="text-arcco-orange ml-2">— Desconto: ${fmtBRL(desconto)}</span>
-            </p>` : ''}
-        </div>
-        <!-- Valor executado -->
-        <div class="bg-arcco-lime/10 border border-arcco-lime/40 rounded-xl p-4 text-center">
-            <p class="text-[9px] font-bold uppercase text-gray-600 tracking-widest">Valor Executado até hoje</p>
-            <p class="font-montserrat font-bold text-xl text-arcco-black mt-1">${fmtBRL(vendaFeita)}</p>
-        </div>
-    </div>`;
-}
-
 // ============================================================
-// portal-cliente.js — Portal do Cliente
+// portal-cliente.js — Portal do Cliente (redesenhado)
+// Layout:
+//   Nome da Obra + tags + info contrato
+//   [Gráfico Físico] [Gráfico Financeiro]
+//   Alerta cronograma
+//   Avanço por Etapa: barras físico + financeiro lado a lado
 // ============================================================
 
 import { STATE, today, parseDate, fmtBRL, fmtDate } from './config.js';
@@ -38,74 +12,224 @@ import { STATE, today, parseDate, fmtBRL, fmtDate } from './config.js';
 export function renderClienteDash(){
     const cont = document.getElementById('cliente-content');
     const o    = STATE.obras.find(x => x.clienteId===STATE.activeUser.id);
-    if(!o) return cont.innerHTML = '<div class="bg-white p-10 rounded-xl shadow-sm border border-gray-200 text-center"><h3 class="font-montserrat text-xl font-bold uppercase">PROJETO EM PREPARAÇÃO</h3><p class="text-sm text-gray-500 mt-2">Aguarde a liberação do cronograma pela Arcco Engenharia.</p></div>';
+    if(!o) return cont.innerHTML = `
+        <div class="bg-white p-10 rounded-xl shadow-sm border border-gray-200 text-center">
+            <h3 class="font-montserrat text-xl font-bold uppercase">PROJETO EM PREPARAÇÃO</h3>
+            <p class="text-sm text-gray-500 mt-2">Aguarde a liberação do cronograma pela Arcco Engenharia.</p>
+        </div>`;
 
-    const tasks      = o.tasks||[];
-    const done       = tasks.filter(t => t.status===2);
-    const total      = tasks.length||1;
-    const pctFis     = Math.round(done.length/total*100);
-    const compAprov  = (o.compras||[]).filter(c => c.status==='aprovado');
-    const isAdm      = o.contrato==='ADMINISTRAÇÃO';
-    const taxa       = parseFloat(o.taxa_adm)||0;
-    const custoReal  = done.reduce((a,t) => a+(parseFloat(t.valor)||0),0)+(compAprov.reduce((a,c) => a+(parseFloat(c.valor)||0),0));
-    const now        = today();
+    const tasks     = o.tasks||[];
+    const done      = tasks.filter(t => t.status===2);
+    const total     = tasks.length||1;
+    const pctFis    = Math.round(done.length/total*100);
+    const isAdm     = o.contrato==='ADMINISTRAÇÃO';
+    const taxa      = parseFloat(o.taxa_adm)||0;
+    const now       = today();
 
+    // ── Valores do contrato ───────────────────────────────────
+    const desconto      = parseFloat(o.desconto)||0;
+    const entrada       = parseFloat(o.entrada)||0;
+    const vendaBruta    = tasks.reduce((a,t) => a+(parseFloat(t.valor_venda)||parseFloat(t.valor)||0),0);
+    const contratoFinal = Math.max(0, vendaBruta - desconto);
+
+    // ── Avanço financeiro baseado nas medições recebidas ──────
+    const medicoes      = o.medicoes||[];
+    const totalMedicoesRecebidas = medicoes
+        .filter(m => m.statusAdm==='recebido')
+        .reduce((a,m) => a+(parseFloat(m.totalVenda)||parseFloat(m.custoMedido)||0), 0);
+    const totalRecebido = totalMedicoesRecebidas + entrada;
+    const pctFin = contratoFinal > 0
+        ? Math.min(100, Math.round(totalRecebido / contratoFinal * 100))
+        : 0;
+    const saldoRestante = Math.max(0, contratoFinal - totalRecebido);
+
+    // ── Atraso no cronograma ──────────────────────────────────
     let maxAtraso=0, etapaAtrasada='';
     tasks.forEach(t => {
-        if(t.status!==2&&t.fim){
+        if(t.status!==2 && t.fim){
             const d = parseDate(t.fim);
-            if(d<now){ const diff=Math.ceil((now-d)/86400000); if(diff>maxAtraso){ maxAtraso=diff; etapaAtrasada=t.nome; } }
+            if(d < now){
+                const diff = Math.ceil((now-d)/86400000);
+                if(diff > maxAtraso){ maxAtraso=diff; etapaAtrasada=t.nome; }
+            }
         }
     });
 
+    // ── Avanço financeiro por módulo ──────────────────────────
+    const mods = [...new Set(tasks.map(t => t.modulo))];
+    const fatorDesc = vendaBruta > 0 ? contratoFinal / vendaBruta : 1;
+
+    const finPorModulo = {};
+    mods.forEach(m => {
+        const mTasks = tasks.filter(t => t.modulo===m);
+        const contratadoMod = mTasks.reduce((a,t) =>
+            a + (parseFloat(t.valor_venda)||parseFloat(t.valor)||0), 0) * fatorDesc;
+
+        // Soma o que já foi recebido neste módulo via medições
+        let recebidoMod = 0;
+        medicoes.filter(med => med.statusAdm==='recebido').forEach(med => {
+            (med.porLider||[]).forEach(l => {
+                (l.servicos||[]).forEach(srv => {
+                    const task = mTasks.find(t => t.id===srv.taskId);
+                    if(task){
+                        const vendaTask = (parseFloat(task.valor_venda)||parseFloat(task.valor)||0) * fatorDesc;
+                        recebidoMod += vendaTask * ((srv.pct||0)/100);
+                    }
+                });
+            });
+        });
+
+        finPorModulo[m] = {
+            contratado: contratadoMod,
+            recebido:   recebidoMod,
+            pct:        contratadoMod > 0 ? Math.min(100, Math.round(recebidoMod/contratadoMod*100)) : 0
+        };
+    });
+
+    // ── Render ────────────────────────────────────────────────
     cont.innerHTML = `
-        <div class="bg-white p-8 rounded-xl shadow-sm border border-gray-200 text-center mb-6 relative overflow-hidden">
-            <div class="absolute top-0 left-0 w-full h-2 bg-arcco-black"></div>
-            <div class="mt-2 mb-2 flex justify-center items-center gap-2">
+
+    <!-- ══ CABEÇALHO: NOME + INFO CONTRATO ══ -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-5">
+        <div class="h-2 bg-arcco-black w-full"></div>
+        <div class="p-6">
+            <div class="flex flex-wrap items-center gap-2 mb-1">
                 <span class="text-[9px] font-bold text-gray-500 bg-gray-100 px-2 py-1 rounded uppercase border">${o.tipo||'PROJETO'}</span>
                 <span class="text-[9px] font-bold text-arcco-black bg-arcco-lime px-2 py-1 rounded uppercase">${o.contrato||'PREÇO FECHADO'}</span>
             </div>
-            <h3 class="font-montserrat font-black-italic text-4xl uppercase tracking-tighter text-arcco-black mb-8">${o.nome}</h3>
-            <div class="flex justify-center mb-8">
-                <div class="relative w-48 h-48">
-                    <canvas id="chart-cli-main"></canvas>
-                    <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                        <span class="text-[10px] font-bold text-gray-400 uppercase -mb-1">Avanço Físico</span>
-                        <span class="text-4xl font-montserrat font-black-italic">${pctFis}%</span>
-                    </div>
+            <h3 class="font-montserrat font-black-italic text-3xl uppercase tracking-tighter text-arcco-black mt-2 mb-4">${o.nome}</h3>
+
+            ${!isAdm ? `
+            <!-- Linha de valores do contrato -->
+            <div class="flex flex-wrap gap-x-5 gap-y-2 text-[10px] font-bold uppercase border-t border-gray-100 pt-4">
+                <div>
+                    <p class="text-gray-400 tracking-widest">Valor do Contrato</p>
+                    <p class="font-montserrat font-bold text-lg text-arcco-black">${fmtBRL(contratoFinal)}</p>
+                    ${desconto>0?`<p class="text-[8px] text-arcco-orange">Tabela: ${fmtBRL(vendaBruta)} — Desconto: ${fmtBRL(desconto)}</p>`:''}
+                </div>
+                ${entrada>0?`
+                <div>
+                    <p class="text-gray-400 tracking-widest">Entrada Paga</p>
+                    <p class="font-montserrat font-bold text-lg text-green-600">${fmtBRL(entrada)}</p>
+                </div>`:''}
+                <div>
+                    <p class="text-gray-400 tracking-widest">Já Recebido</p>
+                    <p class="font-montserrat font-bold text-lg text-arcco-black">${fmtBRL(totalRecebido)}</p>
+                </div>
+                <div>
+                    <p class="text-gray-400 tracking-widest">Saldo a Pagar</p>
+                    <p class="font-montserrat font-bold text-lg ${saldoRestante>0?'text-arcco-black':'text-green-600'}">${fmtBRL(saldoRestante)}</p>
+                </div>
+            </div>` : `
+            <div class="flex flex-wrap gap-x-5 gap-y-2 text-[10px] font-bold uppercase border-t border-gray-100 pt-4">
+                <div><p class="text-gray-400 tracking-widest">Custo Real</p><p class="font-montserrat font-bold text-lg text-arcco-black">${fmtBRL(done.reduce((a,t)=>a+(parseFloat(t.valor)||0),0))}</p></div>
+                <div><p class="text-gray-400 tracking-widest">Taxa ADM (${taxa}%)</p><p class="font-montserrat font-bold text-lg text-arcco-black">${fmtBRL(done.reduce((a,t)=>a+(parseFloat(t.valor)||0),0)*taxa/100)}</p></div>
+            </div>`}
+        </div>
+    </div>
+
+    <!-- ══ DOIS GRÁFICOS LADO A LADO ══ -->
+    <div class="grid grid-cols-2 gap-4 mb-5">
+        <!-- Físico -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 flex flex-col items-center">
+            <p class="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-3">Avanço Físico</p>
+            <div class="relative w-28 h-28">
+                <canvas id="chart-cli-fisico"></canvas>
+                <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <span class="font-montserrat font-black-italic text-2xl text-arcco-black">${pctFis}%</span>
                 </div>
             </div>
-            ${isAdm ? `
-            <div class="grid grid-cols-2 gap-4 mt-6">
-                <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 text-center"><p class="text-[9px] font-bold uppercase text-gray-500">Custo Real</p><p class="font-montserrat font-bold text-xl mt-1">${fmtBRL(custoReal)}</p></div>
-                <div class="bg-arcco-lime/20 p-4 rounded-lg border border-arcco-lime/50 text-center"><p class="text-[9px] font-bold uppercase text-gray-700">Taxa ADM (${taxa}%)</p><p class="font-montserrat font-bold text-xl mt-1">${fmtBRL(custoReal*taxa/100)}</p></div>
-            </div>` : _blocoFinanceiroCliente(o, tasks, done)}
+            <p class="text-[9px] font-bold text-gray-500 uppercase mt-3 text-center">${done.length}/${total} serviços</p>
         </div>
-        ${maxAtraso > 0
-            ? `<div class="bg-red-50 border border-red-200 p-5 rounded-xl mb-6 flex items-start gap-4 shadow-sm"><div class="bg-red-100 p-2 rounded-full text-arcco-red shrink-0"><i data-lucide="alert-triangle" class="w-5 h-5"></i></div><div><h4 class="text-xs font-bold text-red-800 uppercase mb-1">Alerta de Cronograma</h4><p class="text-xs text-red-700">~<strong>${maxAtraso} dias de atraso</strong> em [${etapaAtrasada}]. A equipe da Arcco já está atuando.</p></div></div>`
-            : `<div class="bg-green-50 border border-green-200 p-5 rounded-xl mb-6 flex items-start gap-4 shadow-sm"><div class="bg-green-100 p-2 rounded-full text-green-600 shrink-0"><i data-lucide="check-circle-2" class="w-5 h-5"></i></div><div><h4 class="text-xs font-bold text-green-800 uppercase mb-1">Cronograma em Dia</h4><p class="text-xs text-green-700">Sua obra está dentro do prazo sem atrasos críticos.</p></div></div>`}
-        <div class="space-y-4">
-            <h4 class="font-montserrat font-bold text-sm uppercase text-gray-400 tracking-wider mb-4 flex items-center gap-2 mt-8"><i data-lucide="bar-chart-2" class="w-4 h-4 text-arcco-lime"></i> Avanço por Etapa</h4>
-            ${[...new Set(tasks.map(t => t.modulo))].map(m => {
+        <!-- Financeiro -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 flex flex-col items-center">
+            <p class="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-3">Avanço Financeiro</p>
+            <div class="relative w-28 h-28">
+                <canvas id="chart-cli-financeiro"></canvas>
+                <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <span class="font-montserrat font-black-italic text-2xl text-arcco-black">${pctFin}%</span>
+                </div>
+            </div>
+            <p class="text-[9px] font-bold text-gray-500 uppercase mt-3 text-center">${fmtBRL(totalRecebido)} pago</p>
+        </div>
+    </div>
+
+    <!-- ══ ALERTA CRONOGRAMA ══ -->
+    ${maxAtraso > 0
+        ? `<div class="bg-red-50 border border-red-200 p-4 rounded-xl mb-5 flex items-start gap-3 shadow-sm">
+            <div class="bg-red-100 p-2 rounded-full text-arcco-red shrink-0 mt-0.5"><i data-lucide="alert-triangle" class="w-4 h-4"></i></div>
+            <div><h4 class="text-xs font-bold text-red-800 uppercase mb-0.5">Alerta de Cronograma</h4>
+            <p class="text-xs text-red-700">~<strong>${maxAtraso} dias de atraso</strong> em [${etapaAtrasada}]. A equipe da Arcco está atuando.</p></div>
+           </div>`
+        : `<div class="bg-green-50 border border-green-200 p-4 rounded-xl mb-5 flex items-start gap-3 shadow-sm">
+            <div class="bg-green-100 p-2 rounded-full text-green-600 shrink-0 mt-0.5"><i data-lucide="check-circle-2" class="w-4 h-4"></i></div>
+            <div><h4 class="text-xs font-bold text-green-800 uppercase mb-0.5">Cronograma em Dia</h4>
+            <p class="text-xs text-green-700">Sua obra está dentro do prazo sem atrasos críticos.</p></div>
+           </div>`}
+
+    <!-- ══ AVANÇO POR ETAPA (físico + financeiro) ══ -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div class="bg-gray-50 border-b border-gray-200 px-5 py-3 grid grid-cols-2 gap-4">
+            <p class="text-[9px] font-bold text-gray-500 uppercase tracking-widest flex items-center gap-1">
+                <i data-lucide="hard-hat" class="w-3 h-3"></i> Avanço Físico
+            </p>
+            <p class="text-[9px] font-bold text-gray-500 uppercase tracking-widest flex items-center gap-1">
+                <i data-lucide="trending-up" class="w-3 h-3 text-arcco-lime"></i> Avanço Financeiro
+            </p>
+        </div>
+        <div class="divide-y divide-gray-100">
+            ${mods.map(m => {
                 const mt   = tasks.filter(t => t.modulo===m);
-                const mpct = Math.round(mt.filter(t => t.status===2).length/mt.length*100);
+                const mpct = Math.round(mt.filter(t=>t.status===2).length / mt.length * 100);
+                const fin  = finPorModulo[m] || {pct:0, recebido:0, contratado:0};
                 return `
-                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex justify-between items-center relative overflow-hidden">
-                    ${mpct===100?`<div class="absolute left-0 top-0 h-full w-1.5 bg-arcco-lime"></div>`:''}
-                    <div class="w-full pr-8 pl-2">
-                        <p class="text-xs font-bold text-arcco-black uppercase mb-3">${m}</p>
-                        <div class="w-full h-2 bg-gray-800 rounded-full overflow-hidden">
-                            <div class="h-full bg-arcco-lime" style="width:${mpct}%"></div>
+                <div class="px-5 py-4">
+                    <p class="text-[10px] font-bold text-arcco-black uppercase mb-3">${m}</p>
+                    <div class="grid grid-cols-2 gap-4">
+                        <!-- Barra física -->
+                        <div>
+                            <div class="flex justify-between mb-1">
+                                <span class="text-[9px] font-bold text-gray-400 uppercase">${mt.filter(t=>t.status===2).length}/${mt.length}</span>
+                                <span class="font-montserrat font-bold text-xs ${mpct===100?'text-green-600':'text-arcco-black'}">${mpct}%</span>
+                            </div>
+                            <div class="w-full h-3 bg-gray-100 rounded-full overflow-hidden">
+                                <div class="h-full rounded-full transition-all duration-500 ${mpct===100?'bg-arcco-lime':'bg-arcco-black'}"
+                                     style="width:${mpct}%"></div>
+                            </div>
+                        </div>
+                        <!-- Barra financeira -->
+                        <div>
+                            <div class="flex justify-between mb-1">
+                                <span class="text-[9px] font-bold text-gray-400 uppercase">${fmtBRL(fin.recebido)}</span>
+                                <span class="font-montserrat font-bold text-xs ${fin.pct===100?'text-green-600':'text-arcco-black'}">${fin.pct}%</span>
+                            </div>
+                            <div class="w-full h-3 bg-gray-100 rounded-full overflow-hidden">
+                                <div class="h-full rounded-full transition-all duration-500 ${fin.pct===100?'bg-green-500':'bg-arcco-lime'}"
+                                     style="width:${fin.pct}%"></div>
+                            </div>
+                            ${fin.contratado>0?`<p class="text-[8px] text-gray-400 font-bold mt-1">de ${fmtBRL(fin.contratado)}</p>`:''}
                         </div>
                     </div>
-                    <span class="font-montserrat font-black-italic text-2xl">${mpct}%</span>
                 </div>`;
             }).join('')}
-        </div>`;
+        </div>
+    </div>`;
 
+    // Gráficos donut — físico escuro, financeiro verde
     setTimeout(() => {
-        const c = document.getElementById('chart-cli-main');
-        if(c) new Chart(c,{type:'doughnut',data:{datasets:[{data:[done.length,total-done.length],backgroundColor:['#ccff00','#f4f4f5'],borderWidth:0}]},options:{maintainAspectRatio:false,cutout:'80%',plugins:{tooltip:{enabled:false}}}});
+        const ctxFis = document.getElementById('chart-cli-fisico');
+        if(ctxFis) new Chart(ctxFis, {
+            type: 'doughnut',
+            data: { datasets: [{ data: [pctFis, 100-pctFis], backgroundColor: ['#111111','#f4f4f5'], borderWidth: 0 }] },
+            options: { maintainAspectRatio: false, cutout: '76%', plugins: { tooltip: { enabled: false } } }
+        });
+        const ctxFin = document.getElementById('chart-cli-financeiro');
+        if(ctxFin) new Chart(ctxFin, {
+            type: 'doughnut',
+            data: { datasets: [{ data: [pctFin, 100-pctFin], backgroundColor: ['#ccff00','#f4f4f5'], borderWidth: 0 }] },
+            options: { maintainAspectRatio: false, cutout: '76%', plugins: { tooltip: { enabled: false } } }
+        });
     }, 100);
+
     lucide.createIcons();
 }
