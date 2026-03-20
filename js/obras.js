@@ -281,8 +281,7 @@ export function renderObrasFinalizadasGrid(){
 
 export const reativarObra = async (id) => {
     if(!confirm('Reativar esta obra? Ela voltará para o portfólio ativo.')) return;
-    // Limpa custoFinal e obsFinal para não aparecer no histórico indevidamente
-    await apiUpdate('obras', id, {status:'ativa', dataFim:'', custoFinal:'', obsFinal:''});
+    await apiUpdate('obras', id, {status:'ativa', dataFim:null});
     showToast('OBRA REATIVADA!');
 };
 
@@ -325,7 +324,7 @@ export function renderHistoricoIntelligence(){
     const rankModulo = Object.entries(moduloAtraso).sort((a,b)=>b[1]-a[1]).slice(0,8);
 
     // Obras com variação de custo
-    const obrasVariacao = todasObras.filter(o=>o.custoFinal && o.status==='finalizada').map(o=>{
+    const obrasVariacao = todasObras.filter(o=>o.custoFinal).map(o=>{
         const orcado=(o.tasks||[]).reduce((a,t)=>a+(parseFloat(t.valor)||0),0);
         return {...o, orcado, variacao:parseFloat(o.custoFinal)-orcado};
     }).sort((a,b)=>Math.abs(b.variacao)-Math.abs(a.variacao)).slice(0,5);
@@ -501,8 +500,26 @@ export function renderObraDetail(fId){
             </div>
             ${o.contrato==='ADMINISTRAÇÃO'?`
             <div class="w-32">
-                <label class="text-[9px] font-bold text-gray-500 uppercase tracking-widest block mb-1">Taxa ADM (%)</label>
-                <input type="number" step="0.1" id="det-edit-taxa" class="w-full text-xs font-bold text-arcco-black border border-gray-300 rounded p-2" value="${o.taxa_adm||0}" onblur="APP.updateObraConfig('${fId}')">
+                <label class="text-[9px] font-bold text-gray-500 uppercase tracking-widest block mb-1 flex items-center gap-1">
+                    <i data-lucide="wrench" class="w-3 h-3 text-blue-500"></i> Taxa Serviços (%)
+                </label>
+                <input type="number" step="0.1" id="det-edit-taxa"
+                    class="w-full text-xs font-bold text-arcco-black border border-blue-200 bg-blue-50 rounded p-2"
+                    placeholder="Ex: 30"
+                    value="${o.taxa_adm||0}"
+                    onblur="APP.updateObraConfig('${fId}')">
+                <p class="text-[8px] text-gray-400 font-bold uppercase mt-0.5">MO + EQ + Outros + Extras</p>
+            </div>
+            <div class="w-32">
+                <label class="text-[9px] font-bold text-gray-500 uppercase tracking-widest block mb-1 flex items-center gap-1">
+                    <i data-lucide="package" class="w-3 h-3 text-purple-500"></i> Taxa Materiais (%)
+                </label>
+                <input type="number" step="0.1" id="det-edit-taxa-mat"
+                    class="w-full text-xs font-bold text-arcco-black border border-purple-200 bg-purple-50 rounded p-2"
+                    placeholder="Igual à anterior"
+                    value="${o.taxa_adm_mat??''}"
+                    onblur="APP.updateObraConfig('${fId}')">
+                <p class="text-[8px] text-gray-400 font-bold uppercase mt-0.5">Só sobre materiais (MAT)</p>
             </div>`:''}
             <div class="w-44">
                 <label class="text-[9px] font-bold text-gray-500 uppercase tracking-widest block mb-1 flex items-center gap-1">
@@ -528,10 +545,25 @@ export function renderObraDetail(fId){
 
     const fin = document.getElementById('det-financeiro-container');
     if(o.contrato==='ADMINISTRAÇÃO'){
-        const taxa = parseFloat(o.taxa_adm)||0;
+        const taxa    = parseFloat(o.taxa_adm)||0;
+        const taxaMat = o.taxa_adm_mat !== undefined && o.taxa_adm_mat !== '' ? parseFloat(o.taxa_adm_mat)||0 : taxa;
+        const temTaxaDif = taxaMat !== taxa;
+        // Separar custo por tipo
+        const custoMat      = tasks.reduce((a,t) => a+(parseFloat(t.valor_mat)||0),0);
+        const custoServicos = custoDireto - custoMat; // tudo menos mat
+        const admServicos   = custoServicos * (taxa/100);
+        const admMat        = custoMat      * (taxaMat/100);
+        const admTotal      = admServicos   + admMat;
         fin.innerHTML = `
-            <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 text-right"><p class="text-[9px] text-gray-400 font-bold uppercase mb-1">Custo Real (CD)</p><p class="font-montserrat font-bold text-lg text-arcco-black">${fmtBRL(custoDireto)}</p></div>
-            <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 text-right"><p class="text-[9px] text-gray-400 font-bold uppercase mb-1">Taxa ADM (${taxa}%)</p><p class="font-montserrat font-bold text-lg text-arcco-black">${fmtBRL(custoDireto*taxa/100)}</p></div>`;
+            <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 text-right">
+                <p class="text-[9px] text-gray-400 font-bold uppercase mb-1">Custo Direto (CD)</p>
+                <p class="font-montserrat font-bold text-lg text-arcco-black">${fmtBRL(custoDireto)}</p>
+                ${temTaxaDif?`<p class="text-[8px] text-gray-400 mt-0.5">Serv: ${fmtBRL(custoServicos)} | Mat: ${fmtBRL(custoMat)}</p>`:''}
+            </div>
+            <div class="bg-blue-50 p-4 rounded-lg border border-blue-200 text-right">
+                <p class="text-[9px] text-blue-600 font-bold uppercase mb-1">${temTaxaDif?`ADM Serv (${taxa}%) + Mat (${taxaMat}%)`:`Taxa ADM (${taxa}%)`}</p>
+                <p class="font-montserrat font-bold text-lg text-arcco-black">${fmtBRL(admTotal)}</p>
+            </div>`;
     } else {
         fin.innerHTML = `
             <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 text-right">
@@ -1480,12 +1512,15 @@ export const saveNovaObra = async () => {
 };
 
 export const updateObraConfig = async (fId) => {
-    const contrato    = document.getElementById('det-edit-contrato').value;
-    const taxaEl      = document.getElementById('det-edit-taxa');
-    const taxa_adm    = taxaEl ? parseFloat(taxaEl.value)||0 : 0;
-    const descontoEl  = document.getElementById('det-edit-desconto');
-    const desconto    = descontoEl ? parseFloat(descontoEl.value)||0 : 0;
-    await apiUpdate('obras', fId, {contrato, taxa_adm, desconto});
+    const contrato      = document.getElementById('det-edit-contrato').value;
+    const taxaEl        = document.getElementById('det-edit-taxa');
+    const taxa_adm      = taxaEl ? parseFloat(taxaEl.value)||0 : 0;
+    const taxaMatEl     = document.getElementById('det-edit-taxa-mat');
+    // taxa_adm_mat: '' = usa a mesma taxa; número = taxa específica para materiais
+    const taxa_adm_mat  = taxaMatEl ? taxaMatEl.value.trim() : '';
+    const descontoEl    = document.getElementById('det-edit-desconto');
+    const desconto      = descontoEl ? parseFloat(descontoEl.value)||0 : 0;
+    await apiUpdate('obras', fId, {contrato, taxa_adm, taxa_adm_mat, desconto});
     showToast('CONTRATO ATUALIZADO');
 };
 
