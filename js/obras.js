@@ -279,6 +279,26 @@ export function renderObrasFinalizadasGrid(){
     lucide.createIcons();
 }
 
+export const _toggleTaxaMat = (chk) => {
+    const divMat = document.getElementById('div-taxa-mat');
+    const bg     = document.getElementById('toggle-taxa-mat-bg');
+    const dot    = document.getElementById('toggle-taxa-mat-dot');
+    if(!divMat) return;
+    if(chk.checked){
+        divMat.classList.remove('hidden');
+        if(bg)  bg.style.background = '#ccff00';
+        if(dot) dot.style.left = '20px';
+    } else {
+        divMat.classList.add('hidden');
+        if(bg)  bg.style.background = '#d1d5db';
+        if(dot) dot.style.left = '4px';
+        const taxaMatEl = document.getElementById('det-edit-taxa-mat');
+        if(taxaMatEl) taxaMatEl.value = '';
+        const fId = STATE.currentObraId;
+        if(fId) updateObraConfig(fId);
+    }
+};
+
 export const reativarObra = async (id) => {
     if(!confirm('Reativar esta obra? Ela voltará para o portfólio ativo.')) return;
     await apiUpdate('obras', id, {status:'ativa', dataFim:null});
@@ -489,37 +509,30 @@ export function renderObraDetail(fId){
     const cli = STATE.clients.find(c => c.id===o.clienteId);
     document.getElementById('det-obra-cliente').innerText = `Cliente: ${cli?.nome||o.clienteId}`;
 
-    // Verifica se taxa de materiais está ativa
-    const taxaMatAtiva = o.taxa_adm_mat !== undefined && o.taxa_adm_mat !== '' && o.taxa_adm_mat !== null;
-
     document.getElementById('det-config-contrato').innerHTML = `
-        <!-- Linha 1: Modelo + Taxa ADM + Toggle -->
-        <div class="flex items-end gap-3 flex-wrap">
-            <div class="flex-1 min-w-[150px]">
+        <div class="flex items-end gap-4 flex-wrap">
+            <div class="flex-1 min-w-[160px]">
                 <label class="text-[9px] font-bold text-gray-500 uppercase tracking-widest block mb-1">Modelo de Contrato</label>
-                <select id="det-edit-contrato"
-                    class="w-full text-xs font-bold text-arcco-black border border-gray-300 rounded p-2"
-                    onchange="APP.updateObraConfig('${fId}')">
+                <select id="det-edit-contrato" class="w-full text-xs font-bold text-arcco-black border border-gray-300 rounded p-2" onchange="APP.updateObraConfig('${fId}')">
                     <option value="PREÇO FECHADO" ${o.contrato==='PREÇO FECHADO'?'selected':''}>Preço Fechado</option>
                     <option value="ADMINISTRAÇÃO" ${o.contrato==='ADMINISTRAÇÃO'?'selected':''}>Administração</option>
                 </select>
             </div>
             ${o.contrato==='ADMINISTRAÇÃO'?`
-            <!-- Coluna Taxa ADM + Mat% empilhados + Toggle ao lado -->
             <div class="flex items-start gap-3">
                 <div class="flex flex-col gap-2">
-                    <div class="w-24">
+                    <div class="w-28">
                         <label class="text-[9px] font-bold text-gray-500 uppercase tracking-widest block mb-1">Taxa ADM (%)</label>
                         <input type="number" step="0.1" id="det-edit-taxa"
                             class="w-full text-xs font-bold text-arcco-black border border-blue-200 bg-blue-50 rounded p-2"
-                            placeholder="Ex: 30" value="${o.taxa_adm||0}"
+                            placeholder="Ex: 30" value="${o.taxa_adm||''}"
                             onblur="APP.updateObraConfig('${fId}')">
                     </div>
-                    <div id="div-taxa-mat" class="w-24 ${taxaMatAtiva?'':'hidden'}">
+                    <div id="div-taxa-mat" class="${(o.taxa_adm_mat!==undefined&&o.taxa_adm_mat!==''&&o.taxa_adm_mat!==null)?'':'hidden'} w-28">
                         <label class="text-[9px] font-bold text-purple-500 uppercase tracking-widest block mb-1">Mat. (%)</label>
                         <input type="number" step="0.1" id="det-edit-taxa-mat"
                             class="w-full text-xs font-bold text-arcco-black border border-purple-200 bg-purple-50 rounded p-2"
-                            placeholder="Ex: 15" value="${o.taxa_adm_mat??''}"
+                            placeholder="Ex: 15" value="${o.taxa_adm_mat||''}"
                             onblur="APP.updateObraConfig('${fId}')">
                     </div>
                 </div>
@@ -527,21 +540,18 @@ export function renderObraDetail(fId){
                     <label class="flex items-center gap-2 cursor-pointer select-none">
                         <div class="relative w-9 h-5">
                             <input type="checkbox" id="toggle-taxa-mat" class="sr-only"
-                                ${taxaMatAtiva?'checked':''}
+                                ${(o.taxa_adm_mat!==undefined&&o.taxa_adm_mat!==''&&o.taxa_adm_mat!==null)?'checked':''}
                                 onchange="APP._toggleTaxaMat(this)">
                             <div id="toggle-taxa-mat-bg" class="w-9 h-5 rounded-full transition-all"
-                                style="background:${taxaMatAtiva?'#ccff00':'#d1d5db'}"></div>
+                                style="background:${(o.taxa_adm_mat!==undefined&&o.taxa_adm_mat!==''&&o.taxa_adm_mat!==null)?'#ccff00':'#d1d5db'}"></div>
                             <div id="toggle-taxa-mat-dot" class="absolute top-1 w-3 h-3 bg-white rounded-full shadow transition-all"
-                                style="left:${taxaMatAtiva?'20px':'4px'}"></div>
+                                style="left:${(o.taxa_adm_mat!==undefined&&o.taxa_adm_mat!==''&&o.taxa_adm_mat!==null)?'20px':'4px'}"></div>
                         </div>
-                        <span class="text-[9px] font-bold text-gray-400 uppercase whitespace-nowrap">Mat. dif.?</span>
+                        <span class="text-[9px] font-bold text-gray-400 uppercase">Mat. dif.?</span>
                     </label>
                 </div>
             </div>`:''}
-        </div>
-        <!-- Linha 2: Desconto (sempre visível) -->
-        <div class="flex items-end gap-3 pt-2 border-t border-gray-200">
-            <div class="w-44">
+            <div class="w-40">
                 <label class="text-[9px] font-bold text-gray-500 uppercase tracking-widest block mb-1 flex items-center gap-1">
                     <i data-lucide="tag" class="w-3 h-3 text-arcco-orange"></i> Desconto (R$)
                 </label>
@@ -550,9 +560,7 @@ export function renderObraDetail(fId){
                     placeholder="0,00" value="${o.desconto||0}"
                     onblur="APP.updateObraConfig('${fId}')">
             </div>
-            ${o.desconto>0?`<p class="text-[9px] font-bold text-arcco-orange pb-2">- ${fmtBRL(o.desconto)} deduzido do preço de venda</p>`:''}
         </div>`;
-
     const tasks = o.tasks||[];
     const comprasAprov = (o.compras||[]).filter(c => c.status==='aprovado');
     const totalCusto = tasks.reduce((a,t) => a+(parseFloat(t.valor)||0),0);
@@ -566,56 +574,48 @@ export function renderObraDetail(fId){
     const fin = document.getElementById('det-financeiro-container');
     if(o.contrato==='ADMINISTRAÇÃO'){
         const taxa    = parseFloat(o.taxa_adm)||0;
-        const taxaMat = o.taxa_adm_mat !== undefined && o.taxa_adm_mat !== '' ? parseFloat(o.taxa_adm_mat)||0 : taxa;
-        const temTaxaDif = taxaMat !== taxa;
-        const custoMat      = tasks.reduce((a,t) => a+(parseFloat(t.valor_mat)||0),0);
-        const custoServicos = custoDireto - custoMat;
-        const admServicos   = custoServicos * (taxa/100);
-        const admMat        = custoMat      * (taxaMat/100);
-        const admTotal      = admServicos + admMat;
+        const taxaMat = (o.taxa_adm_mat!==undefined&&o.taxa_adm_mat!=='') ? parseFloat(o.taxa_adm_mat)||0 : taxa;
+        const custoMat   = tasks.reduce((a,t)=>a+(parseFloat(t.valor_mat)||0),0);
+        const admServ    = (custoDireto - custoMat) * (taxa/100);
+        const admMat     = custoMat * (taxaMat/100);
+        const admTotal   = admServ + admMat;
+        const temDuasTax = taxaMat !== taxa && custoMat > 0;
         fin.innerHTML = `
-            <div class="p-3 rounded-lg border border-gray-200 bg-gray-50">
-                <p class="text-[9px] text-gray-400 font-bold uppercase mb-0.5">Custo Direto</p>
-                <p class="font-montserrat font-bold text-xl text-arcco-black">${fmtBRL(custoDireto)}</p>
-                ${temTaxaDif?`<p class="text-[8px] text-gray-400 mt-0.5">Serv: ${fmtBRL(custoServicos)} · Mat: ${fmtBRL(custoMat)}</p>`:''}
+            <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 text-right">
+                <p class="text-[9px] text-gray-400 font-bold uppercase mb-1">Custo Direto (CD)</p>
+                <p class="font-montserrat font-bold text-lg text-arcco-black">${fmtBRL(custoDireto)}</p>
             </div>
-            <div class="p-3 rounded-lg border border-blue-200 bg-blue-50">
-                <p class="text-[9px] text-blue-600 font-bold uppercase mb-0.5">${temTaxaDif?`ADM (${taxa}%·${taxaMat}%)`:`Taxa ADM (${taxa}%)`}</p>
-                <p class="font-montserrat font-bold text-xl text-arcco-black">${fmtBRL(admTotal)}</p>
-            </div>
-            <div class="p-3 rounded-lg border border-arcco-lime/50 bg-arcco-lime/10">
-                <p class="text-[9px] text-gray-600 font-bold uppercase mb-0.5">Total c/ ADM</p>
-                <p class="font-montserrat font-bold text-xl text-arcco-black">${fmtBRL(custoDireto + admTotal)}</p>
+            <div class="bg-blue-50 p-4 rounded-lg border border-blue-200 text-right">
+                <p class="text-[9px] text-blue-600 font-bold uppercase mb-1">${temDuasTax?`ADM ${taxa}% · Mat ${taxaMat}%`:`Taxa ADM (${taxa}%)`}</p>
+                <p class="font-montserrat font-bold text-lg text-arcco-black">${taxa>0?fmtBRL(admTotal):'—'}</p>
             </div>`;
     } else {
         fin.innerHTML = `
-            <div class="p-3 rounded-lg border border-gray-200 bg-gray-50">
-                <p class="text-[9px] text-gray-400 font-bold uppercase mb-0.5">Custo Direto</p>
-                <p class="font-montserrat font-bold text-xl text-arcco-black">${fmtBRL(custoDireto)}</p>
+            <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 text-right">
+                <p class="text-[9px] text-gray-400 font-bold uppercase mb-1">Custo Direto</p>
+                <p class="font-montserrat font-bold text-lg text-arcco-black">${fmtBRL(custoDireto)}</p>
             </div>
             ${desconto>0?`
-            <div class="p-3 rounded-lg border border-orange-200 bg-orange-50">
-                <p class="text-[9px] text-arcco-orange font-bold uppercase mb-0.5 flex items-center gap-1"><i data-lucide="tag" class="w-3 h-3"></i> Desconto</p>
-                <p class="font-montserrat font-bold text-xl text-arcco-orange">- ${fmtBRL(desconto)}</p>
+            <div class="bg-orange-50 p-4 rounded-lg border border-orange-200 text-right">
+                <p class="text-[9px] text-arcco-orange font-bold uppercase mb-1 flex items-center justify-end gap-1"><i data-lucide="tag" class="w-3 h-3"></i> Desconto</p>
+                <p class="font-montserrat font-bold text-lg text-arcco-orange">- ${fmtBRL(desconto)}</p>
             </div>`:''}
-            <div class="p-3 rounded-lg border border-arcco-lime/50 bg-arcco-lime/10">
-                <p class="text-[9px] text-gray-600 font-bold uppercase mb-0.5">Preço de Venda</p>
+            <div class="bg-arcco-lime/20 p-4 rounded-lg border border-arcco-lime/50 text-right shadow-sm ${desconto>0?'':'col-span-2 lg:col-span-1'}">
+                <p class="text-[9px] text-gray-600 font-bold uppercase mb-1">Preço de Venda${desconto>0?' (c/ desconto)':''}</p>
                 <p class="font-montserrat font-bold text-xl text-arcco-black">${fmtBRL(totalVendaFinal)}</p>
-                ${desconto>0?`<p class="text-[8px] text-gray-400 font-bold mt-0.5">Tabela: ${fmtBRL(totalVenda+totalCompras)}</p>`:''}
+                ${desconto>0?`<p class="text-[8px] text-gray-400 font-bold uppercase mt-0.5">Sem desconto: ${fmtBRL(totalVenda+totalCompras)}</p>`:''}
             </div>`;
     }
 
-    // ── Desabilita BDI quando contrato é ADM ─────────────────
-    const taxaTipo = document.getElementById('task-taxa-tipo');
-    const taxaPct  = document.getElementById('task-taxa-pct');
-    if(o.contrato==='ADMINISTRAÇÃO'){
-        if(taxaTipo){ taxaTipo.value='ADM'; taxaTipo.disabled=true; }
-        if(taxaPct) { taxaPct.value=''; taxaPct.disabled=true; taxaPct.placeholder='N/A em ADM'; }
-        if(taxaTipo?.closest) taxaTipo.closest('.bg-arcco-lime\/10')?.classList.add('opacity-40');
-    } else {
-        if(taxaTipo){ taxaTipo.disabled=false; }
-        if(taxaPct) { taxaPct.disabled=false; taxaPct.placeholder='0 = Sem Taxa'; }
-        if(taxaTipo?.closest) taxaTipo.closest('.bg-arcco-lime\/10')?.classList.remove('opacity-40');
+    // ── Desabilita BDI para obras ADM ────────────────────────
+    const bdiEl = document.getElementById('task-bdi');
+    if(bdiEl){
+        if(o.contrato==='ADMINISTRAÇÃO'){
+            bdiEl.value=''; bdiEl.disabled=true;
+            bdiEl.placeholder='N/A (ADM)'; bdiEl.style.opacity='0.4';
+        } else {
+            bdiEl.disabled=false; bdiEl.placeholder='0'; bdiEl.style.opacity='1';
+        }
     }
 
     // ============================================================
@@ -1542,20 +1542,19 @@ export const saveNovaObra = async () => {
     const cli  = document.getElementById('new-obra-cliente').value;
     const tipo = document.getElementById('new-obra-tipo').value;
     if(!nome||!cli) return showToast('Preencha nome e cliente');
-    await apiAdd('obras',{nome,clienteId:cli,tipo,contrato:'PREÇO FECHADO',taxa_adm:0,tasks:[],compras:[],medicoes:[],diarias:[],modulos:[],status:'ativa',timestamp:Date.now()});
+    await apiAdd('obras',{nome,clienteId:cli,tipo,contrato:'PREÇO FECHADO',taxa_adm:0,taxa_adm_mat:'',desconto:0,entrada:0,tasks:[],compras:[],medicoes:[],diarias:[],modulos:[],status:'ativa',timestamp:Date.now()});
     showToast('PROJETO CRIADO');
     closeModal();
 };
 
 export const updateObraConfig = async (fId) => {
-    const contrato      = document.getElementById('det-edit-contrato').value;
-    const taxaEl        = document.getElementById('det-edit-taxa');
-    const taxa_adm      = taxaEl ? parseFloat(taxaEl.value)||0 : 0;
-    const taxaMatEl     = document.getElementById('det-edit-taxa-mat');
-    // taxa_adm_mat: '' = usa a mesma taxa; número = taxa específica para materiais
-    const taxa_adm_mat  = taxaMatEl ? taxaMatEl.value.trim() : '';
-    const descontoEl    = document.getElementById('det-edit-desconto');
-    const desconto      = descontoEl ? parseFloat(descontoEl.value)||0 : 0;
+    const contrato     = document.getElementById('det-edit-contrato').value;
+    const taxaEl       = document.getElementById('det-edit-taxa');
+    const taxa_adm     = taxaEl ? parseFloat(taxaEl.value)||0 : 0;
+    const taxaMatEl    = document.getElementById('det-edit-taxa-mat');
+    const taxa_adm_mat = taxaMatEl ? taxaMatEl.value.trim() : '';
+    const descontoEl   = document.getElementById('det-edit-desconto');
+    const desconto     = descontoEl ? parseFloat(descontoEl.value)||0 : 0;
     await apiUpdate('obras', fId, {contrato, taxa_adm, taxa_adm_mat, desconto});
     showToast('CONTRATO ATUALIZADO');
 };
