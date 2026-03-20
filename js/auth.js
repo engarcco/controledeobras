@@ -75,7 +75,16 @@ function _refreshViews() {
         const mob = document.getElementById('master-logged-name-mobile');
         if (mob) mob.innerText = STATE.activeUser.name;
         window.APP?.renderMasterObrasGrid?.();
-        if (STATE.currentObraId) window.APP?.renderObraDetail?.(STATE.currentObraId);
+        if (STATE.currentObraId) {
+            window.APP?.renderObraDetail?.(STATE.currentObraId);
+            // Re-renderiza a aba ativa para refletir dados salvos no Firebase
+            const secMed = document.getElementById('master-section-medicoes');
+            if (secMed && !secMed.classList.contains('hidden'))
+                window.APP?.renderMedicoes?.();
+            const secPonto = document.getElementById('master-section-ponto');
+            if (secPonto && !secPonto.classList.contains('hidden'))
+                window.APP?.renderMasterPonto?.();
+        }
     }
     if (STATE.activeUser.role === 'FORNECEDOR') window.APP?.renderFornDash?.();
     if (STATE.activeUser.role === 'MEMBRO')     window.APP?.renderMembroDash?.();
@@ -103,6 +112,8 @@ function _handleLogin(e) {
         STATE.activeUser = { role: 'MASTER', name: gestor.nome, login: gestor.login };
         _showView('view-master');
         _refreshViews();
+        // Inicia as notificações push para este usuário
+        window.APP?.initNotifications?.(STATE.activeUser);
         window.APP?.renderFornAdmin?.();
         window.APP?.renderClientsList?.();
         window.APP?.populaSelectClientes?.();
@@ -128,6 +139,7 @@ function _handleLogin(e) {
             if (el) el.innerText = f.nome;
             _showView('view-fornecedor');
             _refreshViews();
+            window.APP?.initNotifications?.(STATE.activeUser);
         } else {
             const lider = STATE.forn.find(x => x.id === f.vinculo);
             STATE.activeUser = {
@@ -139,6 +151,7 @@ function _handleLogin(e) {
             if (el) el.innerText = f.nome;
             _showView('view-membro');
             _refreshViews();
+            window.APP?.initNotifications?.(STATE.activeUser);
         }
         return;
     }
