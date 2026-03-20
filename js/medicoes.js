@@ -161,13 +161,29 @@ export const openModalNovaMedicao = () => {
 
             // Lista de serviços individuais dentro do módulo
             const servicosHtml = mTasks.map((t,i) => {
-                // MO = valor_mo se discriminado, ou o valor total caso não tenha discriminação
-                const moServico   = parseFloat(t.valor_mo) || parseFloat(t.valor) || 0;
+                const moServico    = parseFloat(t.valor_mo) || parseFloat(t.valor) || 0;
                 const vendaServico = parseFloat(t.valor_venda) || parseFloat(t.valor) || 0;
-                const pctConcluido = t.status===2 ? 100 : 0;
-                const tid          = `srv-${m.replace(/\W/g,'')}-${i}`;
+
+                // ── Calcula quanto JÁ foi medido deste serviço em medições anteriores ──
+                // Soma todos os pct deste task em todas as medições já salvas
+                const pctJaMedido = (o.medicoes||[]).reduce((acc, med) => {
+                    const srv = (med.porLider||[])
+                        .flatMap(l => l.servicos||[])
+                        .find(s => s.taskId === t.id);
+                    return acc + (srv ? parseFloat(srv.pct)||0 : 0);
+                }, 0);
+
+                // Máximo que ainda pode ser medido = 100 - já medido (mínimo 0)
+                const maxDisponivel = Math.max(0, 100 - pctJaMedido);
+                // Valor inicial sugerido: se serviço concluído, sugere o restante; senão 0
+                const valorInicial  = t.status===2 ? maxDisponivel : 0;
+                // Se já mediu 100%, bloqueia o checkbox
+                const jaConcluido   = maxDisponivel === 0;
+
+                const tid = `srv-${m.replace(/\W/g,'')}-${i}`;
+
                 return `
-                <div class="med-servico-row ml-4 flex flex-col gap-2 p-3 bg-white rounded border border-gray-100 shadow-sm" data-obra-id="${t.id}">
+                <div class="med-servico-row ml-4 flex flex-col gap-2 p-3 ${jaConcluido?'bg-gray-50 opacity-60':'bg-white'} rounded border border-gray-100 shadow-sm">
                     <div class="flex items-start gap-2">
                         <input type="checkbox" id="${tid}"
                             class="med-srv-chk mt-0.5 w-4 h-4 accent-arcco-black shrink-0"
@@ -176,30 +192,61 @@ export const openModalNovaMedicao = () => {
                             data-nome="${t.nome}"
                             data-mo="${moServico}"
                             data-venda="${vendaServico}"
-                            data-pct="${pctConcluido}"
+                            data-pct="${valorInicial}"
+                            data-max="${maxDisponivel}"
+                            ${jaConcluido?'disabled':''}
                             onchange="APP.calcMedicaoTotal()">
-                        <label for="${tid}" class="flex-1 cursor-pointer">
+                        <label for="${tid}" class="flex-1 ${jaConcluido?'cursor-not-allowed':'cursor-pointer'}">
                             <p class="text-[10px] font-bold text-arcco-black uppercase leading-tight">${t.nome}</p>
                             <p class="text-[8px] font-bold text-gray-400 uppercase mt-0.5">
                                 ${t.forn||'Sem equipe'} • MO: ${fmtBRL(moServico)} • Venda: ${fmtBRL(vendaServico)}
                             </p>
+                            <!-- Barra de progresso de medição -->
+                            <div class="flex items-center gap-2 mt-1.5">
+                                <div class="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                                    <div class="h-full bg-arcco-lime rounded-full transition-all"
+                                         style="width:${pctJaMedido}%"></div>
+                                </div>
+                                <span class="text-[8px] font-bold ${jaConcluido?'text-green-600':'text-gray-500'} uppercase shrink-0">
+                                    ${jaConcluido
+                                        ? '✓ 100% medido'
+                                        : pctJaMedido>0
+                                            ? `${pctJaMedido}% medido · faltam ${maxDisponivel}%`
+                                            : 'Não medido ainda'}
+                                </span>
+                            </div>
                         </label>
                     </div>
                     <!-- Campos que aparecem ao marcar o serviço -->
-                    <div class="med-srv-fields hidden flex-wrap gap-3 pl-6">
-                        <div class="flex items-center gap-1">
-                            <label class="text-[8px] font-bold text-gray-500 uppercase">% Executado</label>
-                            <input type="number" class="med-srv-pct w-16 text-xs font-bold border border-gray-300 rounded p-1"
-                                   placeholder="${pctConcluido}" min="0" max="100" value="${pctConcluido}"
-                                   onchange="APP.calcMedicaoTotal()">
-                            <span class="text-[9px] text-gray-400">%</span>
-                        </div>
-                        <div class="flex items-center gap-1">
-                            <label class="text-[8px] font-bold text-blue-600 uppercase">Retenção</label>
-                            <input type="number" class="med-srv-retencao w-14 text-xs font-bold border border-blue-200 bg-blue-50 rounded p-1"
-                                   placeholder="0" min="0" max="100" value="0"
-                                   onchange="APP.calcMedicaoTotal()">
-                            <span class="text-[9px] text-blue-400">%</span>
+                    <div class="med-srv-fields hidden flex-col gap-2 pl-6 pt-1">
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="flex flex-col gap-1">
+                                <label class="text-[9px] font-bold text-gray-600 uppercase tracking-wider">
+                                    % Executado
+                                    <span class="text-gray-400 font-normal normal-case ml-1">(máx: ${maxDisponivel}%)</span>
+                                </label>
+                                <div class="flex items-center gap-1.5">
+                                    <input type="number"
+                                        class="med-srv-pct text-sm font-bold border border-gray-300 rounded px-2 py-1.5 w-full"
+                                        placeholder="${valorInicial}"
+                                        min="0" max="${maxDisponivel}" value="${valorInicial}"
+                                        oninput="APP._limitarPct(this, ${maxDisponivel})"
+                                        onchange="APP.calcMedicaoTotal()">
+                                    <span class="text-xs font-bold text-gray-500 shrink-0">%</span>
+                                </div>
+                            </div>
+                            <div class="flex flex-col gap-1">
+                                <label class="text-[9px] font-bold text-blue-600 uppercase tracking-wider">Retenção</label>
+                                <div class="flex items-center gap-1.5">
+                                    <input type="number"
+                                        class="med-srv-retencao text-sm font-bold border border-blue-300 bg-blue-50 rounded px-2 py-1.5 w-full"
+                                        placeholder="0"
+                                        min="0" max="100" value="0"
+                                        oninput="APP._limitarPct(this, 100)"
+                                        onchange="APP.calcMedicaoTotal()">
+                                    <span class="text-xs font-bold text-blue-400 shrink-0">%</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>`;
@@ -329,7 +376,7 @@ export const saveMedicao = async () => {
         const retencao     = moServico * (retPct/100);
 
         if(!porLiderMap[lider]) porLiderMap[lider] = { lider, servicos:[], totalMO:0, totalVenda:0, totalRetencao:0, liquido:0 };
-        porLiderMap[lider].servicos.push({ nome, pct:Math.round(pct), retPct:Math.round(retPct) });
+        porLiderMap[lider].servicos.push({ taskId: chk.dataset.taskId, nome, pct:Math.round(pct), retPct:Math.round(retPct) });
         porLiderMap[lider].totalMO       += moServico;
         porLiderMap[lider].totalVenda    += vendaServico;
         porLiderMap[lider].totalRetencao += retencao;
@@ -394,6 +441,22 @@ export const deleteMedicao = async (medId) => {
     await apiUpdate('obras', STATE.currentObraId, {medicoes, diarias});
     showToast('MEDIÇÃO EXCLUÍDA');
     renderMedicoes();
+};
+
+
+// ── Limita o campo de % ao máximo permitido em tempo real ────
+// Chamado pelo oninput de cada campo de % no modal de medição
+export const _limitarPct = (input, maximo) => {
+    // Impede digitar valor acima do máximo
+    let val = parseFloat(input.value);
+    if(isNaN(val)) return;
+    if(val > maximo){
+        input.value = maximo;
+        // Feedback visual: borda vermelha rápida para indicar que foi cortado
+        input.classList.add('border-red-400','bg-red-50');
+        setTimeout(() => input.classList.remove('border-red-400','bg-red-50'), 800);
+    }
+    if(val < 0) input.value = 0;
 };
 
 // ── Diárias ───────────────────────────────────────────────────
