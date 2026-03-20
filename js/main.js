@@ -32,7 +32,8 @@ import { renderMasterObrasGrid, openObraDetail,
          saveTaskToObra, editTask, resetTaskForm,
          toggleTaskStatus, deleteTask, toggleAtencao,
          saveModuloObra, editModuloObra, cancelEditModulo, deleteModuloObra,
-         saveNovaObra, updateObraConfig,
+         saveNovaObra, updateObraConfig, saveHorarioObra, onToggleNoturno,
+         calcFimPorDuracao, calcDuracaoPorFim,
          openModalNovaCompra, saveNovaCompra, aprovarCompra, deleteCompra,
          _toggleTaxaMat } from './obras.js';
 
@@ -143,6 +144,10 @@ window.APP = {
     openModalNovaCompra,
     saveNovaCompra,
     aprovarCompra,
+    saveHorarioObra,
+    onToggleNoturno,
+    calcFimPorDuracao,
+    calcDuracaoPorFim,
     deleteCompra,
 
     // Medições
