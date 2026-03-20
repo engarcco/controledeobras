@@ -490,28 +490,29 @@ export function renderObraDetail(fId){
     document.getElementById('det-obra-cliente').innerText = `Cliente: ${cli?.nome||o.clienteId}`;
 
     document.getElementById('det-config-contrato').innerHTML = `
-        <div class="flex-1 min-w-[150px]">
-            <label class="text-[9px] font-bold text-gray-500 uppercase tracking-widest block mb-1">Modelo de Contrato</label>
-            <select id="det-edit-contrato" class="w-full text-xs font-bold text-arcco-black border border-gray-300 rounded p-2" onchange="APP.updateObraConfig('${fId}')">
-                <option value="PREÇO FECHADO" ${o.contrato==='PREÇO FECHADO'?'selected':''}>Preço Fechado</option>
-                <option value="ADMINISTRAÇÃO" ${o.contrato==='ADMINISTRAÇÃO'?'selected':''}>Administração</option>
-            </select>
-        </div>
-        ${o.contrato==='ADMINISTRAÇÃO'?`
-        <div class="w-32">
-            <label class="text-[9px] font-bold text-gray-500 uppercase tracking-widest block mb-1">Taxa ADM (%)</label>
-            <input type="number" step="0.1" id="det-edit-taxa" class="w-full text-xs font-bold text-arcco-black border border-gray-300 rounded p-2" value="${o.taxa_adm||0}" onblur="APP.updateObraConfig('${fId}')">
-        </div>`:''}
-        <div class="w-44">
-            <label class="text-[9px] font-bold text-gray-500 uppercase tracking-widest block mb-1 flex items-center gap-1">
-                <i data-lucide="tag" class="w-3 h-3 text-arcco-orange"></i> Desconto (R$)
-            </label>
-            <input type="number" step="0.01" min="0" id="det-edit-desconto"
-                class="w-full text-xs font-bold text-arcco-black border border-orange-200 bg-orange-50 rounded p-2"
-                placeholder="0,00"
-                value="${o.desconto||0}"
-                onblur="APP.updateObraConfig('${fId}')">
-            <p class="text-[8px] text-gray-400 font-bold uppercase mt-0.5">Deduzido do preço de venda</p>
+        <div class="flex items-end gap-4 flex-wrap">
+            <div class="min-w-[180px] flex-1">
+                <label class="text-[9px] font-bold text-gray-500 uppercase tracking-widest block mb-1">Modelo de Contrato</label>
+                <select id="det-edit-contrato" class="w-full text-xs font-bold text-arcco-black border border-gray-300 rounded p-2" onchange="APP.updateObraConfig('${fId}')">
+                    <option value="PREÇO FECHADO" ${o.contrato==='PREÇO FECHADO'?'selected':''}>Preço Fechado</option>
+                    <option value="ADMINISTRAÇÃO" ${o.contrato==='ADMINISTRAÇÃO'?'selected':''}>Administração</option>
+                </select>
+            </div>
+            ${o.contrato==='ADMINISTRAÇÃO'?`
+            <div class="w-32">
+                <label class="text-[9px] font-bold text-gray-500 uppercase tracking-widest block mb-1">Taxa ADM (%)</label>
+                <input type="number" step="0.1" id="det-edit-taxa" class="w-full text-xs font-bold text-arcco-black border border-gray-300 rounded p-2" value="${o.taxa_adm||0}" onblur="APP.updateObraConfig('${fId}')">
+            </div>`:''}
+            <div class="w-44">
+                <label class="text-[9px] font-bold text-gray-500 uppercase tracking-widest block mb-1 flex items-center gap-1">
+                    <i data-lucide="tag" class="w-3 h-3 text-arcco-orange"></i> Desconto (R$)
+                </label>
+                <input type="number" step="0.01" min="0" id="det-edit-desconto"
+                    class="w-full text-xs font-bold text-arcco-black border border-orange-200 bg-orange-50 rounded p-2"
+                    placeholder="0,00"
+                    value="${o.desconto||0}"
+                    onblur="APP.updateObraConfig('${fId}')">
+            </div>
         </div>`;
 
     const tasks = o.tasks||[];
