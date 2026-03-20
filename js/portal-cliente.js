@@ -201,7 +201,7 @@ export function renderClienteDash(){
                     <div class="w-2 h-2 rounded-full bg-arcco-lime shrink-0"></div>
                     <div>
                         <p class="text-[10px] font-bold text-arcco-black uppercase">Medição</p>
-                        <p class="text-[8px] font-bold text-gray-400 uppercase">${m.inicio?m.inicio.split('-').reverse().join('/'):''}${m.fim?' → '+m.fim.split('-').reverse().join('/')':''}</p>
+                        <p class="text-[8px] font-bold text-gray-400 uppercase">${m.inicio?m.inicio.split('-').reverse().join('/'):''} ${m.fim?' → '+m.fim.split('-').reverse().join('/'):''}</p>
                     </div>
                 </div>
                 <span class="font-montserrat font-bold text-sm text-arcco-black">${fmtBRL(parseFloat(m.totalVenda)||parseFloat(m.custoMedido)||0)}</span>
