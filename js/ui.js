@@ -140,6 +140,8 @@ export const switchFornTab = (tab) => {
         activeBtn.classList.add('active-forn-tab','border-arcco-lime','text-white');
         activeBtn.classList.remove('border-transparent','text-gray-500');
     }
+    // Renderiza o conteúdo da aba ao abrir
+    if(tab === 'ponto') window.APP?.renderFornPontoLider?.();
 };
 
 // ── Click fora do menu mobile fecha ───────────────────────────
