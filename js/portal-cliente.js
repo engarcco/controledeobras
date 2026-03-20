@@ -1,3 +1,34 @@
+// Calcula e monta o bloco financeiro para contratos de Preço Fechado
+// Aplica o desconto configurado pelo gestor sobre o total de venda
+function _blocoFinanceiroCliente(o, tasks, done){
+    const desconto   = parseFloat(o.desconto) || 0;
+    const vendaBruta = tasks.reduce((a,t) => a + (parseFloat(t.valor_venda)||parseFloat(t.valor)||0), 0);
+    const vendaFinal = Math.max(0, vendaBruta - desconto);
+
+    // Valor executado proporcional ao desconto
+    const fator        = vendaBruta > 0 ? vendaFinal / vendaBruta : 1;
+    const vendaFeita   = done.reduce((a,t) => a + (parseFloat(t.valor_venda)||parseFloat(t.valor)||0), 0) * fator;
+
+    return `
+    <div class="mt-6 space-y-3">
+        <!-- Valor do Contrato em destaque -->
+        <div class="bg-arcco-black rounded-xl p-5 text-center">
+            <p class="text-[9px] font-bold uppercase text-gray-400 tracking-widest">Valor do Contrato</p>
+            <p class="font-montserrat font-black-italic text-3xl text-arcco-lime mt-1">${fmtBRL(vendaFinal)}</p>
+            ${desconto > 0 ? `
+            <p class="text-[9px] font-bold text-gray-400 uppercase mt-2">
+                Tabela: ${fmtBRL(vendaBruta)}
+                <span class="text-arcco-orange ml-2">— Desconto: ${fmtBRL(desconto)}</span>
+            </p>` : ''}
+        </div>
+        <!-- Valor executado -->
+        <div class="bg-arcco-lime/10 border border-arcco-lime/40 rounded-xl p-4 text-center">
+            <p class="text-[9px] font-bold uppercase text-gray-600 tracking-widest">Valor Executado até hoje</p>
+            <p class="font-montserrat font-bold text-xl text-arcco-black mt-1">${fmtBRL(vendaFeita)}</p>
+        </div>
+    </div>`;
+}
+
 // ============================================================
 // portal-cliente.js — Portal do Cliente
 // ============================================================
@@ -48,11 +79,7 @@ export function renderClienteDash(){
             <div class="grid grid-cols-2 gap-4 mt-6">
                 <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 text-center"><p class="text-[9px] font-bold uppercase text-gray-500">Custo Real</p><p class="font-montserrat font-bold text-xl mt-1">${fmtBRL(custoReal)}</p></div>
                 <div class="bg-arcco-lime/20 p-4 rounded-lg border border-arcco-lime/50 text-center"><p class="text-[9px] font-bold uppercase text-gray-700">Taxa ADM (${taxa}%)</p><p class="font-montserrat font-bold text-xl mt-1">${fmtBRL(custoReal*taxa/100)}</p></div>
-            </div>` : `
-            <div class="grid grid-cols-2 gap-4 mt-6">
-                <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 text-center"><p class="text-[9px] font-bold uppercase text-gray-500">Valor Contrato</p><p class="font-montserrat font-bold text-xl mt-1">${fmtBRL(tasks.reduce((a,t)=>a+(parseFloat(t.valor_venda)||parseFloat(t.valor)||0),0))}</p></div>
-                <div class="bg-arcco-lime/20 p-4 rounded-lg border border-arcco-lime/50 text-center"><p class="text-[9px] font-bold uppercase text-gray-700">Valor Executado</p><p class="font-montserrat font-bold text-xl mt-1">${fmtBRL(done.reduce((a,t)=>a+(parseFloat(t.valor_venda)||parseFloat(t.valor)||0),0))}</p></div>
-            </div>`}
+            </div>` : _blocoFinanceiroCliente(o, tasks, done)}
         </div>
         ${maxAtraso > 0
             ? `<div class="bg-red-50 border border-red-200 p-5 rounded-xl mb-6 flex items-start gap-4 shadow-sm"><div class="bg-red-100 p-2 rounded-full text-arcco-red shrink-0"><i data-lucide="alert-triangle" class="w-5 h-5"></i></div><div><h4 class="text-xs font-bold text-red-800 uppercase mb-1">Alerta de Cronograma</h4><p class="text-xs text-red-700">~<strong>${maxAtraso} dias de atraso</strong> em [${etapaAtrasada}]. A equipe da Arcco já está atuando.</p></div></div>`
