@@ -589,6 +589,9 @@
                         <button onclick="APP.openModalNovaDiaria()" class="bg-white border border-gray-300 text-arcco-black font-montserrat font-bold text-xs uppercase px-5 py-2.5 rounded shadow-sm hover:bg-gray-50 flex items-center gap-2">
                             <i data-lucide="user-check" class="w-4 h-4 text-arcco-orange"></i> Lançar Diária
                         </button>
+                        <button onclick="APP.openModal('modal-entrada-obra')" class="bg-green-600 text-white font-montserrat font-bold text-xs uppercase px-5 py-2.5 rounded shadow-md hover:bg-green-700 flex items-center gap-2">
+                            <i data-lucide="hand-coins" class="w-4 h-4"></i> Registrar Entrada
+                        </button>
                         <button onclick="APP.openModalNovaMedicao()" class="bg-arcco-black text-white font-montserrat font-bold text-xs uppercase px-5 py-2.5 rounded shadow-md hover:bg-gray-800 flex items-center gap-2">
                             <i data-lucide="plus" class="w-4 h-4 text-arcco-lime"></i> Nova Medição
                         </button>
@@ -1348,6 +1351,46 @@
             <button onclick="APP.closeModal()" class="flex-1 border border-gray-300 text-gray-600 font-bold text-xs uppercase py-3.5 rounded-lg hover:bg-gray-100">Cancelar</button>
             <button onclick="APP.confirmarFinalizarObra()" class="flex-1 bg-arcco-lime text-arcco-black font-montserrat font-bold text-xs uppercase py-3.5 rounded-lg hover:brightness-95 shadow-md">
                 Arquivar Obra
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: ENTRADA / SINAL DO CLIENTE -->
+<div id="modal-entrada-obra" class="modal-overlay fixed inset-0 bg-black/70 hidden z-[500] items-center justify-center p-4">
+    <div class="bg-white rounded-xl w-full max-w-md shadow-2xl overflow-hidden">
+        <div class="bg-arcco-black border-b border-gray-800 p-5 flex justify-between items-center">
+            <h4 class="font-montserrat font-bold text-sm uppercase text-white flex items-center gap-2">
+                <i data-lucide="hand-coins" class="w-4 h-4 text-green-400"></i> Entrada / Sinal do Cliente
+            </h4>
+            <button onclick="APP.closeModal()" class="text-gray-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+        </div>
+        <div class="p-6 space-y-4">
+            <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+                <p class="text-[10px] font-bold text-green-700 uppercase">O que é isso?</p>
+                <p class="text-[9px] text-green-700 mt-1">Valor pago pelo cliente antes das medições (sinal, adiantamento). Será abatido do saldo a receber e distribuído proporcionalmente nas medições.</p>
+            </div>
+            <div>
+                <label class="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-1">Valor da Entrada (R$) *</label>
+                <input type="number" id="entrada-valor" step="0.01" min="0"
+                    class="font-bold text-arcco-black border-green-300 bg-green-50"
+                    placeholder="Ex: 10000.00">
+            </div>
+            <div>
+                <label class="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-1">Observação (opcional)</label>
+                <input type="text" id="entrada-obs"
+                    class="text-arcco-black"
+                    placeholder="Ex: Sinal pago em 10/03/2026">
+            </div>
+        </div>
+        <div class="p-5 border-t border-gray-200 bg-gray-50 flex gap-3">
+            <button onclick="APP.closeModal()"
+                class="flex-1 border border-gray-300 text-gray-600 font-bold text-xs uppercase py-3.5 rounded-lg hover:bg-gray-100">
+                Cancelar
+            </button>
+            <button onclick="APP.saveEntrada()"
+                class="flex-1 bg-green-600 text-white font-montserrat font-bold text-xs uppercase py-3.5 rounded-lg hover:bg-green-700 shadow-md">
+                Registrar Entrada
             </button>
         </div>
     </div>
