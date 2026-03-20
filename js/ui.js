@@ -105,13 +105,33 @@ export const switchObraTab = (tab) => {
         active.classList.add('active-tab','border-arcco-lime','text-arcco-black');
         active.classList.remove('border-transparent','text-gray-400');
     }
-    // Renderiza o conteúdo da aba ao abrir
-    if(tab==='medicoes') window.APP?.renderMedicoes?.();
-    if(tab==='ponto')    window.APP?.renderMasterPonto?.();
-    if(tab==='curvas')   window.APP?.renderCurvaS?.();
-    if(tab==='compras')  window.APP?.renderComprasList?.(
-        window.APP?.STATE?.obras?.find(o => o.firebaseId===window.APP?.STATE?.currentObraId)
-    );
+    // Renderiza o conteúdo da aba ao abrir.
+    // Se o STATE ainda não tem a obra (onSnapshot ainda não chegou),
+    // tenta novamente em 600ms — tempo suficiente para o Firebase responder.
+    const _renderTab = () => {
+        const obraId = window.APP?.STATE?.currentObraId;
+        const obra   = window.APP?.STATE?.obras?.find(o => o.firebaseId===obraId);
+        if(tab==='medicoes'){
+            if(obra) window.APP?.renderMedicoes?.();
+            else setTimeout(() => window.APP?.renderMedicoes?.(), 600);
+        }
+        if(tab==='ponto'){
+            if(obra) window.APP?.renderMasterPonto?.();
+            else setTimeout(() => window.APP?.renderMasterPonto?.(), 600);
+        }
+        if(tab==='curvas'){
+            if(obra) window.APP?.renderCurvaS?.();
+            else setTimeout(() => window.APP?.renderCurvaS?.(), 600);
+        }
+        if(tab==='compras'){
+            if(obra) window.APP?.renderComprasList?.(obra);
+            else setTimeout(() => {
+                const o2 = window.APP?.STATE?.obras?.find(x => x.firebaseId===window.APP?.STATE?.currentObraId);
+                window.APP?.renderComprasList?.(o2);
+            }, 600);
+        }
+    };
+    _renderTab();
     lucide.createIcons();
 };
 window.switchObraTab = switchObraTab;
