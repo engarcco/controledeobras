@@ -188,8 +188,6 @@ export function renderMedicoes(){
                 </div>
             </div>`).join('');
 
-        const margem = (parseFloat(m.totalVenda)||0) - (parseFloat(m.totalMO)||0);
-
         return `
         <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
             <div class="bg-gray-50 border-b border-gray-200 p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
@@ -206,9 +204,8 @@ export function renderMedicoes(){
                     </button>
                     <!-- Resumo financeiro compacto -->
                     <div class="flex gap-3 text-right mt-1">
-                        <div><p class="text-[7px] font-bold text-gray-400 uppercase">MO Empreiteiros</p><p class="font-montserrat font-bold text-sm text-arcco-black">${fmtBRL(m.totalMO||m.custoMedido||0)}</p></div>
-                        <div><p class="text-[7px] font-bold text-gray-400 uppercase">Venda (Arcco)</p><p class="font-montserrat font-bold text-sm text-arcco-black">${fmtBRL(m.totalVenda||m.custoMedido||0)}</p></div>
-                        ${margem>0?`<div class="bg-arcco-lime/20 px-2 py-1 rounded border border-arcco-lime/40"><p class="text-[7px] font-bold text-gray-600 uppercase">Margem Arcco</p><p class="font-montserrat font-bold text-sm text-arcco-black">${fmtBRL(margem)}</p></div>`:''}
+                        <div><p class="text-[7px] font-bold text-gray-400 uppercase">Medição MO</p><p class="font-montserrat font-bold text-sm text-arcco-black">${fmtBRL(m.totalMO||m.custoMedido||0)}</p></div>
+                        <div><p class="text-[7px] font-bold text-gray-400 uppercase">Medição Arcco</p><p class="font-montserrat font-bold text-sm text-arcco-black">${fmtBRL(m.totalVenda||m.custoMedido||0)}</p></div>
                     </div>
                     ${m.totalRetencao>0?`<p class="text-[9px] font-bold text-blue-600 mt-1">Retenção desta medição: ${fmtBRL(m.totalRetencao)}</p>`:''}
                 </div>
@@ -222,8 +219,15 @@ export function renderMedicoes(){
             </div>`:''}
 
             <!-- Rodapé -->
-            <div class="bg-gray-50 border-t border-gray-100 p-3 flex justify-end">
-                <button onclick="APP.deleteMedicao('${m.id}')" class="text-[10px] font-bold text-gray-400 hover:text-arcco-red uppercase flex items-center gap-1"><i data-lucide="trash-2" class="w-3 h-3"></i> Excluir Medição</button>
+            <div class="bg-gray-50 border-t border-gray-100 p-3 flex justify-between items-center">
+                <button onclick="APP.editarMedicao('${m.id}')"
+                    class="text-[10px] font-bold text-gray-500 hover:text-arcco-black uppercase flex items-center gap-1 border border-gray-300 rounded px-3 py-1.5 hover:bg-white transition-colors">
+                    <i data-lucide="edit-3" class="w-3 h-3"></i> Editar Medição
+                </button>
+                <button onclick="APP.deleteMedicao('${m.id}')"
+                    class="text-[10px] font-bold text-gray-400 hover:text-arcco-red uppercase flex items-center gap-1">
+                    <i data-lucide="trash-2" class="w-3 h-3"></i> Excluir
+                </button>
             </div>
         </div>`;
     }).join('');
@@ -345,10 +349,6 @@ export const openModalNovaMedicao = () => {
                             <p class="text-[10px] font-bold text-arcco-black uppercase leading-tight">${t.nome}</p>
                             <p class="text-[8px] font-bold text-gray-400 uppercase mt-0.5">
                                 ${t.forn||'Sem equipe'}
-                                • MO (fornecedor): ${fmtBRL(moServico)}
-                                • Venda contratada: ${fmtBRL(vendaServicoBruto * fatorDesc)}
-                                ${entradaPaga>0 ? `• <span class='text-green-600'>Entrada: -${fmtBRL(vendaServicoBruto * fatorDesc * (1-fatorEntrada))}</span>` : ''}
-                                • <strong class='text-arcco-black'>A cobrar: ${fmtBRL(vendaServico)}</strong>
                             </p>
                             <!-- Barra de progresso de medição -->
                             <div class="flex items-center gap-2 mt-1.5">
@@ -565,8 +565,31 @@ export const saveMedicao = async () => {
     const diariasAtualizadas = (o.diarias||[]).map(d => !d.medicaoId ? {...d, medicaoId} : d);
     const medicoes = [...(o.medicoes||[]), novaMedicao];
 
-    await apiUpdate('obras', STATE.currentObraId, {medicoes, diarias:diariasAtualizadas});
-    showToast('MEDIÇÃO REGISTRADA!');
+    // Verifica se estamos editando uma medição existente
+    const modal       = document.getElementById('modal-nova-medicao');
+    const editingId   = modal?.getAttribute('data-editing-id')||'';
+
+    let medicoesFinal;
+    if(editingId){
+        // Substitui a medição existente mantendo o id e status originais
+        const original = (o.medicoes||[]).find(x => x.id===editingId);
+        novaMedicao.id        = editingId;
+        novaMedicao.statusAdm = original?.statusAdm || 'pendente';
+        medicoesFinal = (o.medicoes||[]).map(x => x.id===editingId ? novaMedicao : x);
+        modal.removeAttribute('data-editing-id');
+        showToast('MEDIÇÃO ATUALIZADA!');
+    } else {
+        medicoesFinal = [...(o.medicoes||[]), novaMedicao];
+        showToast('MEDIÇÃO REGISTRADA!');
+    }
+
+    await apiUpdate('obras', STATE.currentObraId, {medicoes:medicoesFinal, diarias:diariasAtualizadas});
+    // Atualiza o STATE local imediatamente (sem esperar o onSnapshot)
+    // para que renderMedicoes exiba os dados corretos antes do Firebase confirmar
+    const obraIdx = STATE.obras.findIndex(x => x.firebaseId===STATE.currentObraId);
+    if(obraIdx >= 0){
+        STATE.obras[obraIdx] = {...STATE.obras[obraIdx], medicoes:medicoesFinal, diarias:diariasAtualizadas};
+    }
     closeModal();
     renderMedicoes();
 };
@@ -580,6 +603,59 @@ export const toggleStatusAdm = async (medId) => {
     await apiUpdate('obras', STATE.currentObraId, {medicoes});
     showToast('STATUS ATUALIZADO!');
     renderMedicoes();
+};
+
+export const editarMedicao = (medId) => {
+    const o = STATE.obras.find(x => x.firebaseId===STATE.currentObraId);
+    if(!o) return;
+    const m = (o.medicoes||[]).find(x => x.id===medId);
+    if(!m) return;
+
+    // Abre o modal normalmente (popula serviços, etc.)
+    openModalNovaMedicao();
+
+    // Após renderizar, preenche os campos com os dados da medição existente
+    setTimeout(() => {
+        // Campos de cabeçalho
+        const elInicio = document.getElementById('med-inicio');
+        const elFim    = document.getElementById('med-fim');
+        const elObs    = document.getElementById('med-obs');
+        const elPeriodo= document.getElementById('med-periodo');
+        if(elInicio)  elInicio.value  = m.inicio||'';
+        if(elFim)     elFim.value     = m.fim||'';
+        if(elObs)     elObs.value     = m.obs||'';
+        if(elPeriodo) elPeriodo.value = m.periodo||'mensal';
+
+        // Remarca os serviços e preenche % e retenção de cada um
+        const srvsSalvos = (m.porLider||[]).flatMap(l => l.servicos||[]);
+        srvsSalvos.forEach(srv => {
+            // Acha o checkbox pelo taskId
+            const chk = document.querySelector(`.med-srv-chk[data-task-id="${srv.taskId}"]`);
+            if(!chk || chk.disabled) return;
+            chk.checked = true;
+            APP._toggleCheckinObraRow?.(chk); // mostra os campos
+            // Aciona o toggle dos fields manualmente
+            const fields = chk.closest('.med-servico-row')?.querySelector('.med-srv-fields');
+            if(fields){ fields.classList.remove('hidden'); fields.classList.add('flex'); }
+            // Preenche % executado e retenção
+            const pctInput = chk.closest('.med-servico-row')?.querySelector('.med-srv-pct');
+            const retInput = chk.closest('.med-servico-row')?.querySelector('.med-srv-retencao');
+            if(pctInput) pctInput.value = srv.pct||0;
+            if(retInput) retInput.value = srv.retPct||0;
+        });
+
+        // Recalcula os totais com os valores preenchidos
+        APP.calcMedicaoTotal();
+
+        // Marca o id da medição sendo editada para o saveMedicao substituir em vez de criar nova
+        document.getElementById('modal-nova-medicao')?.setAttribute('data-editing-id', medId);
+
+        // Muda o título e botão do modal
+        const titulo = document.querySelector('#modal-nova-medicao .font-montserrat.font-bold.text-sm');
+        if(titulo) titulo.innerText = 'Editar Medição';
+        const btnSalvar = document.querySelector('#modal-nova-medicao button[onclick="APP.saveMedicao()"]');
+        if(btnSalvar) btnSalvar.innerText = 'Salvar Alterações';
+    }, 150);
 };
 
 export const deleteMedicao = async (medId) => {
@@ -625,11 +701,15 @@ export const saveEntrada = async () => {
         return showToast(`Entrada não pode superar o contrato (${fmtBRL(contrato)})`);
     }
 
-    await apiUpdate('obras', STATE.currentObraId, {
+    const entradaData = {
         entrada:    val,
         entradaObs: obs,
         entradaEm:  new Date().toISOString().split('T')[0]
-    });
+    };
+    await apiUpdate('obras', STATE.currentObraId, entradaData);
+    // Atualiza STATE local imediatamente
+    const obraIdxE = STATE.obras.findIndex(x => x.firebaseId===STATE.currentObraId);
+    if(obraIdxE >= 0) STATE.obras[obraIdxE] = {...STATE.obras[obraIdxE], ...entradaData};
     showToast('ENTRADA REGISTRADA!');
     closeModal();
     renderMedicoes();
@@ -637,7 +717,10 @@ export const saveEntrada = async () => {
 
 export const removerEntrada = async () => {
     if(!confirm('Remover o registro de entrada? O saldo voltará ao valor original.')) return;
-    await apiUpdate('obras', STATE.currentObraId, {entrada:0, entradaObs:'', entradaEm:null});
+    const remData = {entrada:0, entradaObs:'', entradaEm:''};
+    await apiUpdate('obras', STATE.currentObraId, remData);
+    const obraIdxR = STATE.obras.findIndex(x => x.firebaseId===STATE.currentObraId);
+    if(obraIdxR >= 0) STATE.obras[obraIdxR] = {...STATE.obras[obraIdxR], ...remData};
     showToast('ENTRADA REMOVIDA');
     renderMedicoes();
 };
