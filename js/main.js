@@ -33,13 +33,14 @@ import { renderMasterObrasGrid, openObraDetail,
          toggleTaskStatus, deleteTask, toggleAtencao,
          saveModuloObra, editModuloObra, cancelEditModulo, deleteModuloObra,
          saveNovaObra, updateObraConfig,
-         openModalNovaCompra, saveNovaCompra, aprovarCompra, deleteCompra } from './obras.js';
+         openModalNovaCompra,
+    _toggleTaxaMat, saveNovaCompra, aprovarCompra, deleteCompra,
+         _toggleTaxaMat } from './obras.js';
 
 // ── Medições ─────────────────────────────────────────────────
 import { renderMedicoes, openModalNovaMedicao, calcMedicaoTotal,
          saveMedicao, toggleStatusAdm, deleteMedicao, _limitarPct, editarMedicao,
-         saveEntrada,
-    abrirEditarEntrada, removerEntrada,
+         saveEntrada, removerEntrada,
          openModalNovaDiaria, calcDiaria, saveDiaria, deleteDiaria } from './medicoes.js';
 
 // ── Curvas ────────────────────────────────────────────────────
@@ -111,27 +112,6 @@ window.APP = {
     renderHistoricoIntelligence,
     deleteObraCompleta,
     updateObraConfig,
-    _toggleTaxaMat: (chk) => {
-        const divMat  = document.getElementById('div-taxa-mat');
-        const bg      = document.getElementById('toggle-taxa-mat-bg');
-        const dot     = document.getElementById('toggle-taxa-mat-dot');
-        if(!divMat) return;
-        if(chk.checked){
-            divMat.classList.remove('hidden');
-            if(bg)  bg.style.background  = '#ccff00';
-            if(dot) dot.style.transform  = 'translateX(16px)';
-        } else {
-            divMat.classList.add('hidden');
-            if(bg)  bg.style.background  = '';
-            if(dot) dot.style.transform  = '';
-            // Limpa o valor salvo — volta a usar taxa global
-            const taxaMatEl = document.getElementById('det-edit-taxa-mat');
-            if(taxaMatEl) taxaMatEl.value = '';
-            // Salva imediatamente limpando taxa_adm_mat
-            const fId = window.APP?.STATE?.currentObraId;
-            if(fId) window.APP?.updateObraConfig?.(fId);
-        }
-    },
     saveNovaObra,
 
     // CORREÇÃO 2: Formulário simplificado
@@ -273,12 +253,12 @@ window.APP.renderListaGestores          = renderListaGestores;
 window.APP.renderObrasFinalizadasGrid   = renderObrasFinalizadasGrid;
 window.APP.renderHistoricoIntelligence  = renderHistoricoIntelligence;
 
-// ── Funções chamadas pelo ui.js (switchObraTab) e auth.js ─────
-// Estas PRECISAM estar expostas via window.APP para funcionar
-window.APP.renderMedicoes      = renderMedicoes;
-window.APP.renderMasterPonto   = renderMasterPonto;
-window.APP.renderCurvaS        = renderCurvaS;
-window.APP.STATE               = STATE;
+// ── Funções chamadas por ui.js (switchObraTab) e auth.js ─────
+// ESTAS DEVEM estar em window.APP — sem isso as abas ficam vazias
+window.APP.renderMedicoes    = renderMedicoes;
+window.APP.renderMasterPonto = renderMasterPonto;
+window.APP.renderCurvaS      = renderCurvaS;
+window.APP.STATE             = STATE;
 
 // ── Expõe funções de notificação no window.APP ───────────────
 window.APP.notificarServicoConcluido = notificarServicoConcluido;
