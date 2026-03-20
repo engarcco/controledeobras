@@ -28,6 +28,8 @@ export function renderMedicoes(){
     const totalVendaPend   = medicoes.filter(m=>m.statusAdm!=='recebido').reduce((a,m) => a+(parseFloat(m.totalVenda)||parseFloat(m.custoMedido)||0),0);
     const totalRetido      = medicoes.reduce((a,m) => a+(parseFloat(m.totalRetencao)||0),0);
     const totalMOPago      = medicoes.filter(m=>m.statusAdm==='recebido').reduce((a,m) => a+(parseFloat(m.totalMO)||0),0);
+    // Entrada/sinal já pago pelo cliente (descontado das medições futuras)
+    const entrada          = parseFloat(o.entrada)||0;
 
     // Aviso de desconto ativo no topo da aba medições
     const vendaBrutaRender = (o.tasks||[]).reduce((a,t)=>a+(parseFloat(t.valor_venda)||parseFloat(t.valor)||0),0);
@@ -80,7 +82,56 @@ export function renderMedicoes(){
             <p class="text-[9px] font-bold text-blue-600 uppercase tracking-widest flex items-center gap-1"><i data-lucide="shield" class="w-3 h-3"></i> Retenção Acumulada</p>
             <p class="font-montserrat font-black-italic text-2xl text-arcco-black mt-1">${fmtBRL(totalRetido)}</p>
             <p class="text-[9px] font-bold text-blue-500 uppercase mt-1">Será liberado ao fim da obra</p>
+        </div>`:''}
+        ${entrada>0?`
+        <div class="bg-green-50 p-5 rounded-xl border border-green-200 shadow-sm">
+            <p class="text-[9px] font-bold text-green-600 uppercase tracking-widest flex items-center gap-1"><i data-lucide="hand-coins" class="w-3 h-3"></i> Entrada / Sinal</p>
+            <p class="font-montserrat font-black-italic text-2xl text-arcco-black mt-1">${fmtBRL(entrada)}</p>
+            <p class="text-[9px] font-bold text-green-500 uppercase mt-1">Já abatido do saldo</p>
         </div>`:''}`;
+
+    // ── Painel de saldo geral da obra ──────────────────────────
+    const vendaBrutaSaldo  = (o.tasks||[]).reduce((a,t)=>a+(parseFloat(t.valor_venda)||parseFloat(t.valor)||0),0);
+    const descontoSaldo    = parseFloat(o.desconto)||0;
+    const contratoTotal    = Math.max(0, vendaBrutaSaldo - descontoSaldo);
+    const totalRecebido    = totalVendaRec + entrada;
+    const saldoRestante    = Math.max(0, contratoTotal - totalRecebido);
+    const pctRecebido      = contratoTotal > 0 ? Math.round(totalRecebido/contratoTotal*100) : 0;
+
+    // Só mostra o painel de saldo se a obra tiver contrato fechado (não ADM)
+    if(!isAdm && contratoTotal > 0){
+        let saldoEl = document.getElementById('medicoes-saldo-container');
+        const medList = document.getElementById('medicoes-list');
+        if(!saldoEl && medList){
+            saldoEl = document.createElement('div');
+            saldoEl.id = 'medicoes-saldo-container';
+            medList.parentElement.insertBefore(saldoEl, medList);
+        }
+        if(saldoEl) saldoEl.innerHTML = `
+        <div class="bg-arcco-black rounded-xl p-5 space-y-3 mb-4">
+            <div class="flex justify-between items-center">
+                <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Contrato Total</p>
+                <p class="font-montserrat font-bold text-base text-white">${fmtBRL(contratoTotal)}</p>
+            </div>
+            ${entrada>0?`
+            <div class="flex justify-between items-center border-t border-gray-800 pt-3">
+                <p class="text-[10px] font-bold text-green-400 uppercase tracking-widest">(-) Entrada / Sinal</p>
+                <p class="font-montserrat font-bold text-base text-green-400">- ${fmtBRL(entrada)}</p>
+            </div>`:''}
+            <div class="flex justify-between items-center border-t border-gray-800 pt-3">
+                <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">(-) Medições Recebidas</p>
+                <p class="font-montserrat font-bold text-base text-gray-300">- ${fmtBRL(totalVendaRec)}</p>
+            </div>
+            <div class="flex justify-between items-center border-t border-gray-700 pt-3">
+                <p class="text-[10px] font-bold text-arcco-lime uppercase tracking-widest">Saldo a Receber</p>
+                <p class="font-montserrat font-black-italic text-2xl text-arcco-lime">${fmtBRL(saldoRestante)}</p>
+            </div>
+            <div class="w-full h-2 bg-gray-700 rounded-full overflow-hidden mt-1">
+                <div class="h-full bg-arcco-lime rounded-full transition-all" style="width:${Math.min(100,pctRecebido)}%"></div>
+            </div>
+            <p class="text-[9px] font-bold text-gray-500 uppercase text-right">${pctRecebido}% do contrato recebido</p>
+        </div>`;
+    }
 
     // Diárias pendentes (não incluídas em nenhuma medição)
     const diariasPend = diarias.filter(d => !d.medicaoId);
@@ -514,6 +565,40 @@ export const _limitarPct = (input, maximo) => {
         setTimeout(() => input.classList.remove('border-red-400','bg-red-50'), 800);
     }
     if(val < 0) input.value = 0;
+};
+
+// ── Entrada / Sinal do Cliente ───────────────────────────────
+// Salva o valor de entrada pago pelo cliente antes das medições.
+// O valor é distribuído proporcionalmente — abate do saldo a receber.
+export const saveEntrada = async () => {
+    const val = parseFloat(document.getElementById('entrada-valor')?.value)||0;
+    const obs = document.getElementById('entrada-obs')?.value||'';
+    if(!val || val <= 0) return showToast('Digite um valor válido para a entrada');
+    const o = STATE.obras.find(x => x.firebaseId===STATE.currentObraId);
+
+    // Verifica se não ultrapassa o valor do contrato
+    const vendaBruta  = (o.tasks||[]).reduce((a,t)=>a+(parseFloat(t.valor_venda)||parseFloat(t.valor)||0),0);
+    const desconto    = parseFloat(o.desconto)||0;
+    const contrato    = Math.max(0, vendaBruta - desconto);
+    if(contrato > 0 && val > contrato){
+        return showToast(`Entrada não pode superar o contrato (${fmtBRL(contrato)})`);
+    }
+
+    await apiUpdate('obras', STATE.currentObraId, {
+        entrada:    val,
+        entradaObs: obs,
+        entradaEm:  new Date().toISOString().split('T')[0]
+    });
+    showToast('ENTRADA REGISTRADA!');
+    closeModal();
+    renderMedicoes();
+};
+
+export const removerEntrada = async () => {
+    if(!confirm('Remover o registro de entrada? O saldo voltará ao valor original.')) return;
+    await apiUpdate('obras', STATE.currentObraId, {entrada:0, entradaObs:'', entradaEm:null});
+    showToast('ENTRADA REMOVIDA');
+    renderMedicoes();
 };
 
 // ── Diárias ───────────────────────────────────────────────────
