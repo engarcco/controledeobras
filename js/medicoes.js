@@ -683,9 +683,7 @@ export const saveMedicao = async () => {
     const diariasAtualizadas = (o.diarias||[]).map(d => !d.medicaoId ? {...d, medicaoId} : d);
     const medicoes = [...(o.medicoes||[]), novaMedicao];
 
-    // Verifica se estamos editando uma medição existente
-    // (modal já foi buscado acima para a validação)
-    const editingId   = modal?.getAttribute('data-editing-id')||'';
+    // editingId e modal já declarados acima na validação
 
     let medicoesFinal;
     if(editingId){
