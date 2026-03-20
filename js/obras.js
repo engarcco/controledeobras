@@ -499,27 +499,43 @@ export function renderObraDetail(fId){
                 </select>
             </div>
             ${o.contrato==='ADMINISTRAÇÃO'?`
+            <!-- Taxa ADM global (serviços) -->
             <div class="w-32">
-                <label class="text-[9px] font-bold text-gray-500 uppercase tracking-widest block mb-1 flex items-center gap-1">
-                    <i data-lucide="wrench" class="w-3 h-3 text-blue-500"></i> Taxa Serviços (%)
-                </label>
+                <label class="text-[9px] font-bold text-gray-500 uppercase tracking-widest block mb-1">Taxa ADM (%)</label>
                 <input type="number" step="0.1" id="det-edit-taxa"
                     class="w-full text-xs font-bold text-arcco-black border border-blue-200 bg-blue-50 rounded p-2"
                     placeholder="Ex: 30"
                     value="${o.taxa_adm||0}"
                     onblur="APP.updateObraConfig('${fId}')">
-                <p class="text-[8px] text-gray-400 font-bold uppercase mt-0.5">MO + EQ + Outros + Extras</p>
+                <p class="text-[8px] text-gray-400 font-bold uppercase mt-0.5">Sobre tudo (padrão)</p>
             </div>
-            <div class="w-32">
-                <label class="text-[9px] font-bold text-gray-500 uppercase tracking-widest block mb-1 flex items-center gap-1">
-                    <i data-lucide="package" class="w-3 h-3 text-purple-500"></i> Taxa Materiais (%)
+            <!-- Toggle taxa diferente para materiais -->
+            <div class="flex flex-col justify-end gap-1">
+                <label class="flex items-center gap-2 cursor-pointer select-none">
+                    <div class="relative">
+                        <input type="checkbox" id="toggle-taxa-mat"
+                            class="sr-only"
+                            ${(o.taxa_adm_mat!==undefined&&o.taxa_adm_mat!==''&&o.taxa_adm_mat!==null)?'checked':''}
+                            onchange="APP._toggleTaxaMat(this)">
+                        <div class="w-8 h-4 bg-gray-300 rounded-full transition-colors peer-checked:bg-arcco-lime" id="toggle-taxa-mat-bg"
+                             style="${(o.taxa_adm_mat!==undefined&&o.taxa_adm_mat!==''&&o.taxa_adm_mat!==null)?'background:#ccff00':''}">
+                        </div>
+                        <div class="absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full shadow transition-transform" id="toggle-taxa-mat-dot"
+                             style="${(o.taxa_adm_mat!==undefined&&o.taxa_adm_mat!==''&&o.taxa_adm_mat!==null)?'transform:translateX(16px)':''}">
+                        </div>
+                    </div>
+                    <span class="text-[9px] font-bold text-gray-500 uppercase">Taxa diferente p/ materiais?</span>
                 </label>
+            </div>
+            <!-- Campo taxa materiais — só aparece se toggle ativo -->
+            <div class="w-32 ${(o.taxa_adm_mat!==undefined&&o.taxa_adm_mat!==''&&o.taxa_adm_mat!==null)?'':'hidden'}" id="div-taxa-mat">
+                <label class="text-[9px] font-bold text-purple-600 uppercase tracking-widest block mb-1">Taxa Materiais (%)</label>
                 <input type="number" step="0.1" id="det-edit-taxa-mat"
                     class="w-full text-xs font-bold text-arcco-black border border-purple-200 bg-purple-50 rounded p-2"
-                    placeholder="Igual à anterior"
+                    placeholder="Ex: 15"
                     value="${o.taxa_adm_mat??''}"
                     onblur="APP.updateObraConfig('${fId}')">
-                <p class="text-[8px] text-gray-400 font-bold uppercase mt-0.5">Só sobre materiais (MAT)</p>
+                <p class="text-[8px] text-gray-400 font-bold uppercase mt-0.5">Só sobre MAT</p>
             </div>`:''}
             <div class="w-44">
                 <label class="text-[9px] font-bold text-gray-500 uppercase tracking-widest block mb-1 flex items-center gap-1">
