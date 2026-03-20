@@ -15,6 +15,55 @@ import { STATE, apiAdd, apiUpdate, apiDelete, today, parseDate,
 import { showToast, showMasterSection, switchObraTab, closeModal } from './ui.js';
 
 // ── Obras Grid (lista de projetos na tela principal) ──────────
+// ============================================================
+// HELPERS DE DATA: dias úteis respeitando sábado da obra
+// ============================================================
+
+// Retorna 'yyyy-mm-dd' de uma Date
+function _toYMD(d){ return d.toISOString().split('T')[0]; }
+
+// Lê configurações de horário da obra atual
+function _getHorarioObra(){
+    const o = STATE.obras.find(x => x.firebaseId===STATE.currentObraId);
+    return { sabado: !!(o?.trabalhaSabado), noturno: !!(o?.obraNoturna) };
+}
+
+// Avança N dias úteis a partir de uma data (string yyyy-mm-dd)
+// sábado conta se trabalhaSabado=true, domingo nunca conta
+export function _addDiasUteis(dataStr, dias, trabalhaSabado=false){
+    if(!dataStr || !dias) return dataStr;
+    const [y,m,d] = dataStr.split('-').map(Number);
+    let dt = new Date(y, m-1, d);
+    let restante = Math.abs(dias);
+    const dir = dias >= 0 ? 1 : -1;
+    while(restante > 0){
+        dt.setDate(dt.getDate() + dir);
+        const dow = dt.getDay(); // 0=dom, 6=sab
+        if(dow === 0) continue;              // pula domingo sempre
+        if(dow === 6 && !trabalhaSabado) continue; // pula sábado se não trabalha
+        restante--;
+    }
+    return _toYMD(dt);
+}
+
+// Conta dias úteis entre duas datas
+export function _contarDiasUteis(inicioStr, fimStr, trabalhaSabado=false){
+    if(!inicioStr || !fimStr) return 0;
+    const [iy,im,id] = inicioStr.split('-').map(Number);
+    const [fy,fm,fd] = fimStr.split('-').map(Number);
+    let dt = new Date(iy, im-1, id);
+    const fim = new Date(fy, fm-1, fd);
+    let count = 0;
+    while(dt < fim){
+        dt.setDate(dt.getDate() + 1);
+        const dow = dt.getDay();
+        if(dow === 0) continue;
+        if(dow === 6 && !trabalhaSabado) continue;
+        count++;
+    }
+    return count;
+}
+
 export function renderMasterObrasGrid(){
     const grid = document.getElementById('master-obras-grid');
     const now = today();
@@ -279,26 +328,6 @@ export function renderObrasFinalizadasGrid(){
     lucide.createIcons();
 }
 
-export const _toggleTaxaMat = (chk) => {
-    const divMat = document.getElementById('div-taxa-mat');
-    const bg     = document.getElementById('toggle-taxa-mat-bg');
-    const dot    = document.getElementById('toggle-taxa-mat-dot');
-    if(!divMat) return;
-    if(chk.checked){
-        divMat.classList.remove('hidden');
-        if(bg)  bg.style.background = '#ccff00';
-        if(dot) dot.style.left = '20px';
-    } else {
-        divMat.classList.add('hidden');
-        if(bg)  bg.style.background = '#d1d5db';
-        if(dot) dot.style.left = '4px';
-        const taxaMatEl = document.getElementById('det-edit-taxa-mat');
-        if(taxaMatEl) taxaMatEl.value = '';
-        const fId = STATE.currentObraId;
-        if(fId) updateObraConfig(fId);
-    }
-};
-
 export const reativarObra = async (id) => {
     if(!confirm('Reativar esta obra? Ela voltará para o portfólio ativo.')) return;
     await apiUpdate('obras', id, {status:'ativa', dataFim:null});
@@ -511,7 +540,7 @@ export function renderObraDetail(fId){
 
     document.getElementById('det-config-contrato').innerHTML = `
         <div class="flex items-end gap-4 flex-wrap">
-            <div class="flex-1 min-w-[160px]">
+            <div class="min-w-[180px] flex-1">
                 <label class="text-[9px] font-bold text-gray-500 uppercase tracking-widest block mb-1">Modelo de Contrato</label>
                 <select id="det-edit-contrato" class="w-full text-xs font-bold text-arcco-black border border-gray-300 rounded p-2" onchange="APP.updateObraConfig('${fId}')">
                     <option value="PREÇO FECHADO" ${o.contrato==='PREÇO FECHADO'?'selected':''}>Preço Fechado</option>
@@ -519,48 +548,22 @@ export function renderObraDetail(fId){
                 </select>
             </div>
             ${o.contrato==='ADMINISTRAÇÃO'?`
-            <div class="flex items-start gap-3">
-                <div class="flex flex-col gap-2">
-                    <div class="w-28">
-                        <label class="text-[9px] font-bold text-gray-500 uppercase tracking-widest block mb-1">Taxa ADM (%)</label>
-                        <input type="number" step="0.1" id="det-edit-taxa"
-                            class="w-full text-xs font-bold text-arcco-black border border-blue-200 bg-blue-50 rounded p-2"
-                            placeholder="Ex: 30" value="${o.taxa_adm||''}"
-                            onblur="APP.updateObraConfig('${fId}')">
-                    </div>
-                    <div id="div-taxa-mat" class="${(o.taxa_adm_mat!==undefined&&o.taxa_adm_mat!==''&&o.taxa_adm_mat!==null)?'':'hidden'} w-28">
-                        <label class="text-[9px] font-bold text-purple-500 uppercase tracking-widest block mb-1">Mat. (%)</label>
-                        <input type="number" step="0.1" id="det-edit-taxa-mat"
-                            class="w-full text-xs font-bold text-arcco-black border border-purple-200 bg-purple-50 rounded p-2"
-                            placeholder="Ex: 15" value="${o.taxa_adm_mat||''}"
-                            onblur="APP.updateObraConfig('${fId}')">
-                    </div>
-                </div>
-                <div class="pt-6">
-                    <label class="flex items-center gap-2 cursor-pointer select-none">
-                        <div class="relative w-9 h-5">
-                            <input type="checkbox" id="toggle-taxa-mat" class="sr-only"
-                                ${(o.taxa_adm_mat!==undefined&&o.taxa_adm_mat!==''&&o.taxa_adm_mat!==null)?'checked':''}
-                                onchange="APP._toggleTaxaMat(this)">
-                            <div id="toggle-taxa-mat-bg" class="w-9 h-5 rounded-full transition-all"
-                                style="background:${(o.taxa_adm_mat!==undefined&&o.taxa_adm_mat!==''&&o.taxa_adm_mat!==null)?'#ccff00':'#d1d5db'}"></div>
-                            <div id="toggle-taxa-mat-dot" class="absolute top-1 w-3 h-3 bg-white rounded-full shadow transition-all"
-                                style="left:${(o.taxa_adm_mat!==undefined&&o.taxa_adm_mat!==''&&o.taxa_adm_mat!==null)?'20px':'4px'}"></div>
-                        </div>
-                        <span class="text-[9px] font-bold text-gray-400 uppercase">Mat. dif.?</span>
-                    </label>
-                </div>
+            <div class="w-32">
+                <label class="text-[9px] font-bold text-gray-500 uppercase tracking-widest block mb-1">Taxa ADM (%)</label>
+                <input type="number" step="0.1" id="det-edit-taxa" class="w-full text-xs font-bold text-arcco-black border border-gray-300 rounded p-2" value="${o.taxa_adm||0}" onblur="APP.updateObraConfig('${fId}')">
             </div>`:''}
-            <div class="w-40">
+            <div class="w-44">
                 <label class="text-[9px] font-bold text-gray-500 uppercase tracking-widest block mb-1 flex items-center gap-1">
                     <i data-lucide="tag" class="w-3 h-3 text-arcco-orange"></i> Desconto (R$)
                 </label>
                 <input type="number" step="0.01" min="0" id="det-edit-desconto"
                     class="w-full text-xs font-bold text-arcco-black border border-orange-200 bg-orange-50 rounded p-2"
-                    placeholder="0,00" value="${o.desconto||0}"
+                    placeholder="0,00"
+                    value="${o.desconto||0}"
                     onblur="APP.updateObraConfig('${fId}')">
             </div>
         </div>`;
+
     const tasks = o.tasks||[];
     const comprasAprov = (o.compras||[]).filter(c => c.status==='aprovado');
     const totalCusto = tasks.reduce((a,t) => a+(parseFloat(t.valor)||0),0);
@@ -573,22 +576,10 @@ export function renderObraDetail(fId){
 
     const fin = document.getElementById('det-financeiro-container');
     if(o.contrato==='ADMINISTRAÇÃO'){
-        const taxa    = parseFloat(o.taxa_adm)||0;
-        const taxaMat = (o.taxa_adm_mat!==undefined&&o.taxa_adm_mat!=='') ? parseFloat(o.taxa_adm_mat)||0 : taxa;
-        const custoMat   = tasks.reduce((a,t)=>a+(parseFloat(t.valor_mat)||0),0);
-        const admServ    = (custoDireto - custoMat) * (taxa/100);
-        const admMat     = custoMat * (taxaMat/100);
-        const admTotal   = admServ + admMat;
-        const temDuasTax = taxaMat !== taxa && custoMat > 0;
+        const taxa = parseFloat(o.taxa_adm)||0;
         fin.innerHTML = `
-            <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 text-right">
-                <p class="text-[9px] text-gray-400 font-bold uppercase mb-1">Custo Direto (CD)</p>
-                <p class="font-montserrat font-bold text-lg text-arcco-black">${fmtBRL(custoDireto)}</p>
-            </div>
-            <div class="bg-blue-50 p-4 rounded-lg border border-blue-200 text-right">
-                <p class="text-[9px] text-blue-600 font-bold uppercase mb-1">${temDuasTax?`ADM ${taxa}% · Mat ${taxaMat}%`:`Taxa ADM (${taxa}%)`}</p>
-                <p class="font-montserrat font-bold text-lg text-arcco-black">${taxa>0?fmtBRL(admTotal):'—'}</p>
-            </div>`;
+            <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 text-right"><p class="text-[9px] text-gray-400 font-bold uppercase mb-1">Custo Real (CD)</p><p class="font-montserrat font-bold text-lg text-arcco-black">${fmtBRL(custoDireto)}</p></div>
+            <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 text-right"><p class="text-[9px] text-gray-400 font-bold uppercase mb-1">Taxa ADM (${taxa}%)</p><p class="font-montserrat font-bold text-lg text-arcco-black">${fmtBRL(custoDireto*taxa/100)}</p></div>`;
     } else {
         fin.innerHTML = `
             <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 text-right">
@@ -607,6 +598,35 @@ export function renderObraDetail(fId){
             </div>`;
     }
 
+    // ============================================================
+    // ── Mostra seção de configurações de horário ────────────
+    const horarioDiv = document.getElementById('det-config-horario');
+    if(horarioDiv){
+        horarioDiv.classList.remove('hidden');
+        const chkSab = document.getElementById('toggle-sabado');
+        const chkNot = document.getElementById('toggle-noturno');
+        if(chkSab){
+            chkSab.checked = !!(o.trabalhaSabado);
+            const bg = document.getElementById('toggle-sabado-bg');
+            const dot = document.getElementById('toggle-sabado-dot');
+            if(bg)  bg.style.background = o.trabalhaSabado ? '#ccff00' : '#d1d5db';
+            if(dot) dot.style.left      = o.trabalhaSabado ? '20px'    : '4px';
+        }
+        if(chkNot){
+            chkNot.checked = !!(o.obraNoturna);
+            const bg = document.getElementById('toggle-noturno-bg');
+            const dot = document.getElementById('toggle-noturno-dot');
+            if(bg)  bg.style.background = o.obraNoturna ? '#ccff00' : '#d1d5db';
+            if(dot) dot.style.left      = o.obraNoturna ? '20px'    : '4px';
+            const divNot = document.getElementById('div-horario-noturno');
+            if(divNot) divNot.classList.toggle('hidden', !o.obraNoturna);
+        }
+        const elNI = document.getElementById('noturno-inicio');
+        const elNF = document.getElementById('noturno-fim');
+        if(elNI && o.noturnoInicio) elNI.value = o.noturnoInicio;
+        if(elNF && o.noturnoFim)    elNF.value = o.noturnoFim;
+    }
+
     // ── Desabilita BDI para obras ADM ────────────────────────
     const bdiEl = document.getElementById('task-bdi');
     if(bdiEl){
@@ -618,7 +638,6 @@ export function renderObraDetail(fId){
         }
     }
 
-    // ============================================================
     // CORREÇÃO 3: Select de fornecedor agora carrega subordinados
     // Ao selecionar o líder, aparece checkboxes dos subordinados
     // ============================================================
@@ -973,15 +992,41 @@ export const calcTotalTask = () => {
 };
 
 // Calcula e mostra a data PERT no formulário
+// Calcula Data de Fim quando usuário informa duração em dias úteis
+export const calcFimPorDuracao = () => {
+    const inicio   = document.getElementById('task-inicio')?.value;
+    const duracaoEl= document.getElementById('task-duracao');
+    const fimEl    = document.getElementById('task-fim');
+    if(!inicio || !duracaoEl || !fimEl) return;
+    const duracao = parseInt(duracaoEl.value) || 0;
+    if(duracao <= 0){ fimEl.value = ''; return; }
+    const { sabado } = _getHorarioObra();
+    fimEl.value = _addDiasUteis(inicio, duracao - 1, sabado); // -1 pois o início já conta
+    calcPERT();
+};
+
+// Quando usuário edita a Data de Fim manualmente, recalcula a duração
+export const calcDuracaoPorFim = () => {
+    const inicio   = document.getElementById('task-inicio')?.value;
+    const fim      = document.getElementById('task-fim')?.value;
+    const duracaoEl= document.getElementById('task-duracao');
+    if(!inicio || !fim || !duracaoEl) return;
+    const { sabado } = _getHorarioObra();
+    // +1 pois o dia de início também conta
+    duracaoEl.value = _contarDiasUteis(inicio, fim, sabado) + 1;
+};
+
 export const calcPERT = () => {
     const s    = document.getElementById('task-inicio').value;
     const e    = document.getElementById('task-fim').value;
     const disp = document.getElementById('pert-display');
     if(!s || !e){ if(disp) disp.innerText = '---'; return; }
-    const [sy,sm,sd] = s.split('-'); const [ey,em,ed] = e.split('-');
-    const ds = new Date(sy,sm-1,sd); const de = new Date(ey,em-1,ed);
-    const m  = Math.round((de - ds) / 86400000);
-    if(m < 0){ if(disp) disp.innerText = 'Datas inválidas'; return; }
+    const { sabado } = _getHorarioObra();
+    // Usa duração em dias úteis (campo task-duracao) se preenchida, senão calcula
+    const duracaoInput = parseInt(document.getElementById('task-duracao')?.value) || 0;
+    const m = duracaoInput > 0 ? duracaoInput : _contarDiasUteis(s, e, sabado) + 1;
+    if(m <= 0){ if(disp) disp.innerText = 'Datas inválidas'; return; }
+    const ds = new Date(...s.split('-').map((v,i)=>i===1?Number(v)-1:Number(v)));
     const ot = m + (parseInt(document.getElementById('task-otimista').value)||0);
     const pe = m + (parseInt(document.getElementById('task-pessimista').value)||0);
     const te = (ot + 4*m + pe) / 6;
@@ -1188,11 +1233,16 @@ export const handleDepChange = () => {
     const o   = STATE.obras.find(x => x.firebaseId===STATE.currentObraId);
     const dep = o?.tasks?.find(t => t.id===depId);
     if(dep?.fim){
+        const { sabado } = _getHorarioObra();
+        // Início = próximo dia útil após o fim da dependência
+        const proximoUtil = _addDiasUteis(dep.fim, 1, sabado);
         const el = document.getElementById('task-inicio');
-        el.value = dep.fim;
+        el.value = proximoUtil;
         updateInicioStyle(el);
+        // Recalcula fim se duração já foi preenchida
+        calcFimPorDuracao();
         calcPERT();
-        showToast('Data de início ajustada pela dependência');
+        showToast(`Início ajustado para ${proximoUtil.split('-').reverse().join('/')} (próx. dia útil após dependência)`);
     }
 };
 
@@ -1239,8 +1289,9 @@ export const saveTaskToObra = async () => {
         membros_ids: membrosIds,    // IDs dos subordinados marcados
         membros:     membrosNomes,  // Nomes para exibição
         // Datas
-        inicio: document.getElementById('task-inicio').value,
-        fim:    document.getElementById('task-fim').value,
+        inicio:   document.getElementById('task-inicio').value,
+        fim:      document.getElementById('task-fim').value,
+        duracao:  parseInt(document.getElementById('task-duracao')?.value)||0,
         otimista:   parseInt(document.getElementById('task-otimista').value)  || 0,
         pessimista: parseInt(document.getElementById('task-pessimista').value)|| 0,
         dep: document.getElementById('task-dep').value
@@ -1343,6 +1394,16 @@ export const editTask = (id) => {
     el.value = t.inicio || '';
     updateInicioStyle(el);
     document.getElementById('task-fim').value        = t.fim || '';
+    // Preenche duração — calcula se não estiver salva
+    const duracaoEl2 = document.getElementById('task-duracao');
+    if(duracaoEl2){
+        if(t.duracao){ duracaoEl2.value = t.duracao; }
+        else if(t.inicio && t.fim){
+            const o2 = STATE.obras.find(x => x.firebaseId===STATE.currentObraId);
+            const sb = !!(o2?.trabalhaSabado);
+            duracaoEl2.value = _contarDiasUteis(t.inicio, t.fim, sb) + 1;
+        }
+    }
     document.getElementById('task-otimista').value   = t.otimista || '0';
     document.getElementById('task-pessimista').value = t.pessimista || '0';
     document.getElementById('task-dep').value        = t.dep?.length ? t.dep[0] : '';
@@ -1433,6 +1494,8 @@ export const resetTaskForm = () => {
     el.value = '';
     updateInicioStyle(el);
     document.getElementById('task-fim').value        = '';
+    const elDur = document.getElementById('task-duracao');
+    if(elDur) elDur.value = '';
     document.getElementById('task-otimista').value   = '0';
     document.getElementById('task-pessimista').value = '0';
     document.getElementById('task-dep').value        = '';
@@ -1542,20 +1605,49 @@ export const saveNovaObra = async () => {
     const cli  = document.getElementById('new-obra-cliente').value;
     const tipo = document.getElementById('new-obra-tipo').value;
     if(!nome||!cli) return showToast('Preencha nome e cliente');
-    await apiAdd('obras',{nome,clienteId:cli,tipo,contrato:'PREÇO FECHADO',taxa_adm:0,taxa_adm_mat:'',desconto:0,entrada:0,tasks:[],compras:[],medicoes:[],diarias:[],modulos:[],status:'ativa',timestamp:Date.now()});
+    await apiAdd('obras',{nome,clienteId:cli,tipo,contrato:'PREÇO FECHADO',taxa_adm:0,tasks:[],compras:[],medicoes:[],diarias:[],modulos:[],status:'ativa',timestamp:Date.now()});
     showToast('PROJETO CRIADO');
     closeModal();
 };
 
+export const saveHorarioObra = async () => {
+    const fId = STATE.currentObraId;
+    if(!fId) return;
+    const trabalhaSabado = document.getElementById('toggle-sabado')?.checked || false;
+    const obraNoturna    = document.getElementById('toggle-noturno')?.checked || false;
+    const noturnoInicio  = document.getElementById('noturno-inicio')?.value || '22:00';
+    const noturnoFim     = document.getElementById('noturno-fim')?.value    || '06:00';
+    await apiUpdate('obras', fId, {trabalhaSabado, obraNoturna, noturnoInicio, noturnoFim});
+    // Atualiza STATE local imediatamente
+    const idx = STATE.obras.findIndex(x => x.firebaseId===fId);
+    if(idx>=0) STATE.obras[idx] = {...STATE.obras[idx], trabalhaSabado, obraNoturna, noturnoInicio, noturnoFim};
+    showToast('HORÁRIO ATUALIZADO');
+};
+
+export const onToggleNoturno = () => {
+    const chk    = document.getElementById('toggle-noturno');
+    const bg     = document.getElementById('toggle-noturno-bg');
+    const dot    = document.getElementById('toggle-noturno-dot');
+    const divNot = document.getElementById('div-horario-noturno');
+    if(chk?.checked){
+        if(bg)  bg.style.background = '#ccff00';
+        if(dot) dot.style.left = '20px';
+        divNot?.classList.remove('hidden');
+    } else {
+        if(bg)  bg.style.background = '#d1d5db';
+        if(dot) dot.style.left = '4px';
+        divNot?.classList.add('hidden');
+    }
+    saveHorarioObra();
+};
+
 export const updateObraConfig = async (fId) => {
-    const contrato     = document.getElementById('det-edit-contrato').value;
-    const taxaEl       = document.getElementById('det-edit-taxa');
-    const taxa_adm     = taxaEl ? parseFloat(taxaEl.value)||0 : 0;
-    const taxaMatEl    = document.getElementById('det-edit-taxa-mat');
-    const taxa_adm_mat = taxaMatEl ? taxaMatEl.value.trim() : '';
-    const descontoEl   = document.getElementById('det-edit-desconto');
-    const desconto     = descontoEl ? parseFloat(descontoEl.value)||0 : 0;
-    await apiUpdate('obras', fId, {contrato, taxa_adm, taxa_adm_mat, desconto});
+    const contrato    = document.getElementById('det-edit-contrato').value;
+    const taxaEl      = document.getElementById('det-edit-taxa');
+    const taxa_adm    = taxaEl ? parseFloat(taxaEl.value)||0 : 0;
+    const descontoEl  = document.getElementById('det-edit-desconto');
+    const desconto    = descontoEl ? parseFloat(descontoEl.value)||0 : 0;
+    await apiUpdate('obras', fId, {contrato, taxa_adm, desconto});
     showToast('CONTRATO ATUALIZADO');
 };
 
@@ -1590,51 +1682,24 @@ export function renderComprasList(o){
 }
 
 export const openModalNovaCompra = () => {
-    // Defensivo: verifica elementos antes de acessar
-    const el = (id) => document.getElementById(id);
-    if(el('compra-desc'))  el('compra-desc').value  = '';
-    if(el('compra-valor')) el('compra-valor').value = '';
-    if(el('compra-data'))  el('compra-data').value  = new Date().toISOString().split('T')[0];
-    if(el('compra-link'))  el('compra-link').value  = '';
+    document.getElementById('compra-desc').value  = '';
+    document.getElementById('compra-valor').value = '';
+    document.getElementById('compra-data').value  = new Date().toISOString().split('T')[0];
+    document.getElementById('compra-link').value  = '';
     openModal('modal-nova-compra');
 };
 
 export const saveNovaCompra = async () => {
-    const el   = (id) => document.getElementById(id);
-    const desc = el('compra-desc')?.value || '';
-    const val  = parseFloat(el('compra-valor')?.value)||0;
-    const dt   = el('compra-data')?.value || '';
-    const lnk  = el('compra-link')?.value || '';
+    const desc = document.getElementById('compra-desc').value;
+    const val  = parseFloat(document.getElementById('compra-valor').value)||0;
+    const dt   = document.getElementById('compra-data').value;
+    const lnk  = document.getElementById('compra-link').value;
     if(!desc||!val) return showToast('Preencha descrição e valor.');
-
     const o = STATE.obras.find(x => x.firebaseId===STATE.currentObraId);
-    if(!o) return showToast('Nenhuma obra selecionada.');
-
-    // Líder → pendente (Master precisa aprovar)
-    // Master → aprovado direto
-    const isLider  = STATE.activeUser.role === 'FORNECEDOR';
-    const isMaster = STATE.activeUser.role === 'MASTER';
-    const nova = {
-        id:          `C-${Date.now()}`,
-        desc, valor: val, data: dt, link: lnk,
-        forn:        isLider ? STATE.activeUser.name : 'GESTOR (ARCCO)',
-        status:      isMaster ? 'aprovado' : 'pendente',
-        aprovadoPor: isMaster ? STATE.activeUser.name : null
-    };
-
-    await apiUpdate('obras', STATE.currentObraId, {compras:[...(o.compras||[]), nova]});
-    showToast(isMaster ? 'DESPESA LANÇADA!' : 'MATERIAL ENVIADO PARA APROVAÇÃO DO MASTER!');
+    const nova = {id:`C-${Date.now()}`,desc,valor:val,data:dt,link:lnk,forn:STATE.activeUser.role==='FORNECEDOR'?STATE.activeUser.name:'GESTOR (ARCCO)',status:STATE.activeUser.role==='FORNECEDOR'?'pendente':'aprovado',aprovadoPor:STATE.activeUser.role!=='FORNECEDOR'?STATE.activeUser.name:null};
+    await apiUpdate('obras',STATE.currentObraId,{compras:[...(o.compras||[]),nova]});
+    showToast(STATE.activeUser.role==='FORNECEDOR'?'MATERIAL ENVIADO PARA APROVAÇÃO!':'DESPESA LANÇADA!');
     closeModal();
-
-    // Re-renderiza a aba correta dependendo de quem lançou
-    if(isLider){
-        // Atualiza STATE local imediatamente
-        const idx = STATE.obras.findIndex(x => x.firebaseId===STATE.currentObraId);
-        if(idx>=0) STATE.obras[idx] = {...STATE.obras[idx], compras:[...(o.compras||[]),nova]};
-        // Re-renderiza o checklist do fornecedor
-        const { renderFornChecklist } = await import('./portal-forn.js');
-        renderFornChecklist(STATE.currentObraId);
-    }
 };
 
 export const aprovarCompra = async (fId, cId) => {
