@@ -110,6 +110,27 @@ window.APP = {
     renderHistoricoIntelligence,
     deleteObraCompleta,
     updateObraConfig,
+    _toggleTaxaMat: (chk) => {
+        const divMat  = document.getElementById('div-taxa-mat');
+        const bg      = document.getElementById('toggle-taxa-mat-bg');
+        const dot     = document.getElementById('toggle-taxa-mat-dot');
+        if(!divMat) return;
+        if(chk.checked){
+            divMat.classList.remove('hidden');
+            if(bg)  bg.style.background  = '#ccff00';
+            if(dot) dot.style.transform  = 'translateX(16px)';
+        } else {
+            divMat.classList.add('hidden');
+            if(bg)  bg.style.background  = '';
+            if(dot) dot.style.transform  = '';
+            // Limpa o valor salvo — volta a usar taxa global
+            const taxaMatEl = document.getElementById('det-edit-taxa-mat');
+            if(taxaMatEl) taxaMatEl.value = '';
+            // Salva imediatamente limpando taxa_adm_mat
+            const fId = window.APP?.STATE?.currentObraId;
+            if(fId) window.APP?.updateObraConfig?.(fId);
+        }
+    },
     saveNovaObra,
 
     // CORREÇÃO 2: Formulário simplificado
