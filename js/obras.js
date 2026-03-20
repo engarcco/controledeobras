@@ -505,33 +505,38 @@ export function renderObraDetail(fId){
                 </select>
             </div>
             ${o.contrato==='ADMINISTRAÇÃO'?`
-            <div class="w-24 shrink-0">
-                <label class="text-[9px] font-bold text-gray-500 uppercase tracking-widest block mb-1">Taxa ADM (%)</label>
-                <input type="number" step="0.1" id="det-edit-taxa"
-                    class="w-full text-xs font-bold text-arcco-black border border-blue-200 bg-blue-50 rounded p-2"
-                    placeholder="Ex: 30" value="${o.taxa_adm||0}"
-                    onblur="APP.updateObraConfig('${fId}')">
-            </div>
-            <div class="flex flex-col justify-end pb-0.5">
-                <label class="flex items-center gap-2 cursor-pointer select-none">
-                    <div class="relative w-9 h-5 shrink-0">
-                        <input type="checkbox" id="toggle-taxa-mat" class="sr-only"
-                            ${taxaMatAtiva?'checked':''}
-                            onchange="APP._toggleTaxaMat(this)">
-                        <div id="toggle-taxa-mat-bg" class="w-9 h-5 rounded-full transition-all"
-                            style="background:${taxaMatAtiva?'#ccff00':'#d1d5db'}"></div>
-                        <div id="toggle-taxa-mat-dot" class="absolute top-1 w-3 h-3 bg-white rounded-full shadow transition-all"
-                            style="left:${taxaMatAtiva?'20px':'4px'}"></div>
+            <!-- Coluna Taxa ADM + Mat% empilhados + Toggle ao lado -->
+            <div class="flex items-start gap-3">
+                <div class="flex flex-col gap-2">
+                    <div class="w-24">
+                        <label class="text-[9px] font-bold text-gray-500 uppercase tracking-widest block mb-1">Taxa ADM (%)</label>
+                        <input type="number" step="0.1" id="det-edit-taxa"
+                            class="w-full text-xs font-bold text-arcco-black border border-blue-200 bg-blue-50 rounded p-2"
+                            placeholder="Ex: 30" value="${o.taxa_adm||0}"
+                            onblur="APP.updateObraConfig('${fId}')">
                     </div>
-                    <span class="text-[9px] font-bold text-gray-400 uppercase whitespace-nowrap">Mat. diferente?</span>
-                </label>
-            </div>
-            <div id="div-taxa-mat" class="w-24 shrink-0 ${taxaMatAtiva?'':'hidden'}">
-                <label class="text-[9px] font-bold text-purple-500 uppercase tracking-widest block mb-1">Mat. (%)</label>
-                <input type="number" step="0.1" id="det-edit-taxa-mat"
-                    class="w-full text-xs font-bold text-arcco-black border border-purple-200 bg-purple-50 rounded p-2"
-                    placeholder="Ex: 15" value="${o.taxa_adm_mat??''}"
-                    onblur="APP.updateObraConfig('${fId}')">
+                    <div id="div-taxa-mat" class="w-24 ${taxaMatAtiva?'':'hidden'}">
+                        <label class="text-[9px] font-bold text-purple-500 uppercase tracking-widest block mb-1">Mat. (%)</label>
+                        <input type="number" step="0.1" id="det-edit-taxa-mat"
+                            class="w-full text-xs font-bold text-arcco-black border border-purple-200 bg-purple-50 rounded p-2"
+                            placeholder="Ex: 15" value="${o.taxa_adm_mat??''}"
+                            onblur="APP.updateObraConfig('${fId}')">
+                    </div>
+                </div>
+                <div class="pt-6">
+                    <label class="flex items-center gap-2 cursor-pointer select-none">
+                        <div class="relative w-9 h-5">
+                            <input type="checkbox" id="toggle-taxa-mat" class="sr-only"
+                                ${taxaMatAtiva?'checked':''}
+                                onchange="APP._toggleTaxaMat(this)">
+                            <div id="toggle-taxa-mat-bg" class="w-9 h-5 rounded-full transition-all"
+                                style="background:${taxaMatAtiva?'#ccff00':'#d1d5db'}"></div>
+                            <div id="toggle-taxa-mat-dot" class="absolute top-1 w-3 h-3 bg-white rounded-full shadow transition-all"
+                                style="left:${taxaMatAtiva?'20px':'4px'}"></div>
+                        </div>
+                        <span class="text-[9px] font-bold text-gray-400 uppercase whitespace-nowrap">Mat. dif.?</span>
+                    </label>
+                </div>
             </div>`:''}
         </div>
         <!-- Linha 2: Desconto (sempre visível) -->
@@ -598,6 +603,19 @@ export function renderObraDetail(fId){
                 <p class="font-montserrat font-bold text-xl text-arcco-black">${fmtBRL(totalVendaFinal)}</p>
                 ${desconto>0?`<p class="text-[8px] text-gray-400 font-bold mt-0.5">Tabela: ${fmtBRL(totalVenda+totalCompras)}</p>`:''}
             </div>`;
+    }
+
+    // ── Desabilita BDI quando contrato é ADM ─────────────────
+    const taxaTipo = document.getElementById('task-taxa-tipo');
+    const taxaPct  = document.getElementById('task-taxa-pct');
+    if(o.contrato==='ADMINISTRAÇÃO'){
+        if(taxaTipo){ taxaTipo.value='ADM'; taxaTipo.disabled=true; }
+        if(taxaPct) { taxaPct.value=''; taxaPct.disabled=true; taxaPct.placeholder='N/A em ADM'; }
+        if(taxaTipo?.closest) taxaTipo.closest('.bg-arcco-lime\/10')?.classList.add('opacity-40');
+    } else {
+        if(taxaTipo){ taxaTipo.disabled=false; }
+        if(taxaPct) { taxaPct.disabled=false; taxaPct.placeholder='0 = Sem Taxa'; }
+        if(taxaTipo?.closest) taxaTipo.closest('.bg-arcco-lime\/10')?.classList.remove('opacity-40');
     }
 
     // ============================================================
