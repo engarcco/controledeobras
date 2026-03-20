@@ -15,7 +15,19 @@ import { showToast, openModal, closeModal } from './ui.js';
 // ── Render principal da aba Medições ─────────────────────────
 export function renderMedicoes(){
     const o = STATE.obras.find(x => x.firebaseId===STATE.currentObraId);
-    if(!o) return;
+    // Se a obra ainda não chegou via onSnapshot, agenda retry progressivo
+    if(!o){
+        if(!renderMedicoes._tentativas) renderMedicoes._tentativas = 0;
+        if(renderMedicoes._tentativas < 8){
+            renderMedicoes._tentativas++;
+            const delay = renderMedicoes._tentativas * 400; // 400, 800, 1200... até 3200ms
+            setTimeout(renderMedicoes, delay);
+        } else {
+            renderMedicoes._tentativas = 0; // reseta para próxima chamada
+        }
+        return;
+    }
+    renderMedicoes._tentativas = 0; // sucesso — reseta contador
 
     const medicoes = o.medicoes||[];
     const diarias  = o.diarias||[];
