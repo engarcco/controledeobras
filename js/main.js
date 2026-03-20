@@ -37,7 +37,7 @@ import { renderMasterObrasGrid, openObraDetail,
 
 // ── Medições ─────────────────────────────────────────────────
 import { renderMedicoes, openModalNovaMedicao, calcMedicaoTotal,
-         saveMedicao, toggleStatusAdm, deleteMedicao,
+         saveMedicao, toggleStatusAdm, deleteMedicao, _limitarPct,
          openModalNovaDiaria, calcDiaria, saveDiaria, deleteDiaria } from './medicoes.js';
 
 // ── Curvas ────────────────────────────────────────────────────
@@ -75,6 +75,11 @@ import { renderClienteDash }   from './portal-cliente.js';
 
 // ── Offline ───────────────────────────────────────────────────
 import { salvarOffline, sincronizarDados, initOfflineListeners } from './offline.js';
+
+// ── Notificações Push ──────────────────────────────────────────
+import { initNotifications, notificarServicoConcluido,
+         notificarCheckin, notificarAtraso,
+         notificarGargalo, notificarCheckinPendente } from './notifications.js';
 
 // ═══════════════════════════════════════════════════════════════
 // Monta window.APP — objeto público consumido pelo HTML inline
@@ -140,6 +145,7 @@ window.APP = {
     saveMedicao,
     toggleStatusAdm,
     deleteMedicao,
+    _limitarPct,
 
     // Diárias
     openModalNovaDiaria,
@@ -236,6 +242,14 @@ window.APP.renderComposicoesList   = renderComposicoesList;
 window.APP.renderListaGestores          = renderListaGestores;
 window.APP.renderObrasFinalizadasGrid   = renderObrasFinalizadasGrid;
 window.APP.renderHistoricoIntelligence  = renderHistoricoIntelligence;
+
+// ── Expõe funções de notificação no window.APP ───────────────
+window.APP.notificarServicoConcluido = notificarServicoConcluido;
+window.APP.notificarCheckin          = notificarCheckin;
+window.APP.notificarAtraso           = notificarAtraso;
+window.APP.notificarGargalo          = notificarGargalo;
+window.APP.notificarCheckinPendente  = notificarCheckinPendente;
+window.APP.initNotifications         = initNotifications;
 
 // ── Inicia autenticação Firebase + watchers Firestore ─────────
 setupAuth();
