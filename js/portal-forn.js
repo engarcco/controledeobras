@@ -73,7 +73,7 @@ export function renderFornDash(){
 }
 
 // 🔴 AQUI ESTAVA O ERRO - FOI ADICIONADO O "async" ANTES DOS PARÊNTESES ABAIXO
-export const renderFornChecklist = async (id) => {
+export const renderFornChecklist = (id) => {
     STATE.currentObraId = id;
     const o        = STATE.obras.find(x => x.firebaseId===id);
     const cont     = document.getElementById('fornecedor-content');
@@ -85,8 +85,6 @@ export const renderFornChecklist = async (id) => {
     const foco     = emAndamento[0]||pendentes[0]||null;
     const isSubord = STATE.activeUser.vinculo!=='MASTER';
     const minhasCompras = (o.compras||[]).filter(c => c.forn===STATE.activeUser.name);
-
-    const { openModalNovaCompra } = await import('./obras.js');
 
     cont.innerHTML = `
         <div class="flex justify-between items-center mb-6">
