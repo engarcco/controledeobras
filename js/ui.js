@@ -105,6 +105,13 @@ export const switchObraTab = (tab) => {
         active.classList.add('active-tab','border-arcco-lime','text-arcco-black');
         active.classList.remove('border-transparent','text-gray-400');
     }
+    // Renderiza o conteúdo da aba ao abrir
+    if(tab==='medicoes') window.APP?.renderMedicoes?.();
+    if(tab==='ponto')    window.APP?.renderMasterPonto?.();
+    if(tab==='curvas')   window.APP?.renderCurvaS?.();
+    if(tab==='compras')  window.APP?.renderComprasList?.(
+        window.APP?.STATE?.obras?.find(o => o.firebaseId===window.APP?.STATE?.currentObraId)
+    );
     lucide.createIcons();
 };
 window.switchObraTab = switchObraTab;
