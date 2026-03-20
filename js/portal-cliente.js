@@ -105,7 +105,10 @@ export function renderClienteDash(){
                 <div>
                     <p class="text-gray-400 tracking-widest">Valor do Contrato</p>
                     <p class="font-montserrat font-bold text-lg text-arcco-black">${fmtBRL(contratoFinal)}</p>
-                    ${desconto>0?`<p class="text-[8px] text-arcco-orange">Tabela: ${fmtBRL(vendaBruta)} — Desconto: ${fmtBRL(desconto)}</p>`:''}
+                    ${desconto>0?`
+                    <p class="text-[9px] font-bold text-arcco-black mt-0.5">Tabela: ${fmtBRL(vendaBruta)}</p>
+                    <p class="text-[9px] font-bold text-arcco-orange">Desconto: ${fmtBRL(desconto)}</p>
+                    `:''}
                 </div>
                 ${entrada>0?`
                 <div>
@@ -153,6 +156,49 @@ export function renderClienteDash(){
             <p class="text-[9px] font-bold text-gray-500 uppercase mt-3 text-center">${fmtBRL(totalRecebido)} pago</p>
         </div>
     </div>
+
+    <!-- ══ EXTRATO DE PAGAMENTOS ══ -->
+    ${(entrada > 0 || medicoes.filter(m=>m.statusAdm==='recebido').length > 0) ? `
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-5">
+        <div class="bg-gray-50 border-b border-gray-200 px-5 py-3">
+            <p class="text-[9px] font-bold text-gray-500 uppercase tracking-widest flex items-center gap-1">
+                <i data-lucide="receipt" class="w-3 h-3 text-arcco-lime"></i> Histórico de Pagamentos
+            </p>
+        </div>
+        <div class="divide-y divide-gray-100">
+            ${entrada > 0 ? `
+            <div class="px-5 py-3 flex justify-between items-center">
+                <div class="flex items-center gap-2">
+                    <div class="w-2 h-2 rounded-full bg-green-500 shrink-0"></div>
+                    <div>
+                        <p class="text-[10px] font-bold text-arcco-black uppercase">Entrada / Sinal</p>
+                        ${o.entradaEm ? `<p class="text-[8px] font-bold text-gray-400 uppercase">${o.entradaEm.split('-').reverse().join('/')}</p>` : ''}
+                    </div>
+                </div>
+                <span class="font-montserrat font-bold text-sm text-green-600">${fmtBRL(entrada)}</span>
+            </div>` : ''}
+            ${medicoes.filter(m=>m.statusAdm==='recebido').sort((a,b)=>(a.inicio||'').localeCompare(b.inicio||'')).map(m => `
+            <div class="px-5 py-3 flex justify-between items-center">
+                <div class="flex items-center gap-2">
+                    <div class="w-2 h-2 rounded-full bg-arcco-lime shrink-0"></div>
+                    <div>
+                        <p class="text-[10px] font-bold text-arcco-black uppercase">Medição</p>
+                        <p class="text-[8px] font-bold text-gray-400 uppercase">${m.inicio?m.inicio.split('-').reverse().join('/'):''}${m.fim?' → '+m.fim.split('-').reverse().join('/')':''}</p>
+                    </div>
+                </div>
+                <span class="font-montserrat font-bold text-sm text-arcco-black">${fmtBRL(parseFloat(m.totalVenda)||parseFloat(m.custoMedido)||0)}</span>
+            </div>`).join('')}
+            <!-- Total -->
+            <div class="px-5 py-3 flex justify-between items-center bg-gray-50">
+                <p class="text-[10px] font-bold text-arcco-black uppercase">Total Recebido</p>
+                <span class="font-montserrat font-bold text-base text-arcco-black">${fmtBRL(totalRecebido)}</span>
+            </div>
+            <div class="px-5 py-3 flex justify-between items-center">
+                <p class="text-[10px] font-bold text-gray-500 uppercase">Saldo a Pagar</p>
+                <span class="font-montserrat font-bold text-base ${saldoRestante>0?'text-arcco-black':'text-green-600'}">${fmtBRL(saldoRestante)}</span>
+            </div>
+        </div>
+    </div>` : ''}
 
     <!-- ══ ALERTA CRONOGRAMA ══ -->
     ${maxAtraso > 0
