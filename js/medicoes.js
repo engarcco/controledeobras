@@ -257,6 +257,8 @@ export const openModalNovaMedicao = () => {
     document.getElementById('med-inicio').value = '';
     document.getElementById('med-fim').value    = '';
     document.getElementById('med-obs').value    = '';
+    const elVenc = document.getElementById('med-vencimento');
+    if(elVenc) elVenc.value = '';
 
     // ── Dois fatores aplicados em cascata ────────────────────────
     // 1. FATOR DESCONTO: reduz o valor contratado de cada serviço
@@ -559,6 +561,7 @@ export const saveMedicao = async () => {
         periodo:    document.getElementById('med-periodo').value,
         inicio:     document.getElementById('med-inicio').value,
         fim:        document.getElementById('med-fim').value,
+        vencimento: document.getElementById('med-vencimento')?.value||'',
         // Valores separados
         totalMO:         custoMOTotal,       // o que vai pagar os empreiteiros
         totalVenda:      totalVendaGlobal,   // receita da Arcco
