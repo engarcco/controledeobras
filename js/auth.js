@@ -77,13 +77,14 @@ function _refreshViews() {
         window.APP?.renderMasterObrasGrid?.();
         if (STATE.currentObraId) {
             window.APP?.renderObraDetail?.(STATE.currentObraId);
-            // Re-renderiza a aba ativa para refletir dados salvos no Firebase
-            const secMed = document.getElementById('master-section-medicoes');
-            if (secMed && !secMed.classList.contains('hidden'))
-                window.APP?.renderMedicoes?.();
-            const secPonto = document.getElementById('master-section-ponto');
-            if (secPonto && !secPonto.classList.contains('hidden'))
-                window.APP?.renderMasterPonto?.();
+            // Re-renderiza a aba que estiver visível no momento
+            // (obra-tab-* são as abas dentro do detalhe da obra)
+            const tabMed   = document.getElementById('obra-tab-medicoes');
+            const tabPonto = document.getElementById('obra-tab-ponto');
+            const tabCurva = document.getElementById('obra-tab-curvas');
+            if (tabMed   && !tabMed.classList.contains('hidden'))   window.APP?.renderMedicoes?.();
+            if (tabPonto && !tabPonto.classList.contains('hidden'))  window.APP?.renderMasterPonto?.();
+            if (tabCurva && !tabCurva.classList.contains('hidden'))  window.APP?.renderCurvaS?.();
         }
     }
     if (STATE.activeUser.role === 'FORNECEDOR') window.APP?.renderFornDash?.();
