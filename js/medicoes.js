@@ -29,6 +29,13 @@ export function renderMedicoes(){
     }
     renderMedicoes._tentativas = 0; // sucesso — reseta contador
 
+    // CORREÇÃO: limpa containers dinâmicos injetados por obras anteriores
+    // Sem isso, ao trocar de obra os dados antigos persistem no DOM
+    ['medicoes-aviso-desconto', 'medicoes-saldo-container'].forEach(id => {
+        const el = document.getElementById(id);
+        if(el) el.remove();
+    });
+
     const medicoes = o.medicoes||[];
     const diarias  = o.diarias||[];
     const isAdm    = o.contrato==='ADMINISTRAÇÃO';
@@ -138,7 +145,17 @@ export function renderMedicoes(){
             ${entrada>0?`
             <div class="flex justify-between items-center border-t border-gray-800 pt-3">
                 <p class="text-[10px] font-bold text-green-400 uppercase tracking-widest">(-) Entrada / Sinal</p>
-                <p class="font-montserrat font-bold text-base text-green-400">- ${fmtBRL(entrada)}</p>
+                <div class="flex items-center gap-2">
+                    <p class="font-montserrat font-bold text-base text-green-400">- ${fmtBRL(entrada)}</p>
+                    <button onclick="APP.abrirEditarEntrada()" title="Editar entrada"
+                        class="w-6 h-6 rounded bg-gray-800 hover:bg-gray-700 flex items-center justify-center text-gray-400 hover:text-white transition-colors">
+                        <i data-lucide="edit-3" class="w-3 h-3"></i>
+                    </button>
+                    <button onclick="APP.removerEntrada()" title="Remover entrada"
+                        class="w-6 h-6 rounded bg-gray-800 hover:bg-red-900 flex items-center justify-center text-gray-400 hover:text-red-400 transition-colors">
+                        <i data-lucide="x" class="w-3 h-3"></i>
+                    </button>
+                </div>
             </div>`:''}
             <div class="flex justify-between items-center border-t border-gray-800 pt-3">
                 <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">(-) Medições Recebidas</p>
@@ -214,24 +231,11 @@ export function renderMedicoes(){
                         class="text-[9px] font-bold uppercase px-3 py-1.5 rounded border transition-colors ${m.statusAdm==='recebido'?'badge-pago hover:bg-red-50 hover:text-red-600 hover:border-red-200':'badge-pendente hover:bg-green-50 hover:text-green-700 hover:border-green-200'}">
                         ${m.statusAdm==='recebido'?'✓ Recebido':'Marcar Recebido'}
                     </button>
-                    <!-- Resumo financeiro — ADM ou Preço Fechado -->
-                    ${(()=>{
-                        const oC = STATE.obras.find(x=>x.firebaseId===STATE.currentObraId);
-                        const isAdmC = oC?.contrato==='ADMINISTRAÇÃO';
-                        const taxaC  = parseFloat(oC?.taxa_adm)||0;
-                        const custo  = parseFloat(m.totalMO||m.custoMedido)||0;
-                        const venda  = parseFloat(m.totalVenda||m.custoMedido)||0;
-                        return isAdmC ? `
-                        <div class="flex gap-2 text-right mt-1 flex-wrap">
-                            <div><p class="text-[7px] font-bold text-gray-400 uppercase">Custo Executado</p><p class="font-montserrat font-bold text-sm text-arcco-black">${fmtBRL(custo)}</p></div>
-                            <div class="bg-blue-50 px-2 py-1 rounded border border-blue-100"><p class="text-[7px] font-bold text-blue-600 uppercase">ADM (${taxaC}%)</p><p class="font-montserrat font-bold text-sm text-arcco-black">${fmtBRL(venda)}</p></div>
-                            <div class="bg-arcco-lime/20 px-2 py-1 rounded border border-arcco-lime/40"><p class="text-[7px] font-bold text-gray-600 uppercase">Total</p><p class="font-montserrat font-bold text-sm text-arcco-black">${fmtBRL(custo+venda)}</p></div>
-                        </div>` : `
-                        <div class="flex gap-3 text-right mt-1">
-                            <div><p class="text-[7px] font-bold text-gray-400 uppercase">Medição MO</p><p class="font-montserrat font-bold text-sm text-arcco-black">${fmtBRL(custo)}</p></div>
-                            <div><p class="text-[7px] font-bold text-gray-400 uppercase">Medição Arcco</p><p class="font-montserrat font-bold text-sm text-arcco-black">${fmtBRL(venda)}</p></div>
-                        </div>`;
-                    })()}
+                    <!-- Resumo financeiro compacto -->
+                    <div class="flex gap-3 text-right mt-1">
+                        <div><p class="text-[7px] font-bold text-gray-400 uppercase">Medição MO</p><p class="font-montserrat font-bold text-sm text-arcco-black">${fmtBRL(m.totalMO||m.custoMedido||0)}</p></div>
+                        <div><p class="text-[7px] font-bold text-gray-400 uppercase">Medição Arcco</p><p class="font-montserrat font-bold text-sm text-arcco-black">${fmtBRL(m.totalVenda||m.custoMedido||0)}</p></div>
+                    </div>
                     ${m.totalRetencao>0?`<p class="text-[9px] font-bold text-blue-600 mt-1">Retenção desta medição: ${fmtBRL(m.totalRetencao)}</p>`:''}
                 </div>
             </div>
@@ -243,13 +247,12 @@ export function renderMedicoes(){
                 ${lideresHtml}
             </div>`:''}
 
-            <!-- Rodapé: editar só aparece se NÃO estiver paga -->
+            <!-- Rodapé -->
             <div class="bg-gray-50 border-t border-gray-100 p-3 flex justify-between items-center">
-                ${m.statusAdm !== 'recebido' ? `
                 <button onclick="APP.editarMedicao('${m.id}')"
                     class="text-[10px] font-bold text-gray-500 hover:text-arcco-black uppercase flex items-center gap-1 border border-gray-300 rounded px-3 py-1.5 hover:bg-white transition-colors">
                     <i data-lucide="edit-3" class="w-3 h-3"></i> Editar Medição
-                </button>` : `<div></div>`}
+                </button>
                 <button onclick="APP.deleteMedicao('${m.id}')"
                     class="text-[10px] font-bold text-gray-400 hover:text-arcco-red uppercase flex items-center gap-1">
                     <i data-lucide="trash-2" class="w-3 h-3"></i> Excluir
@@ -272,55 +275,34 @@ export const openModalNovaMedicao = () => {
     document.getElementById('med-fim').value    = '';
     document.getElementById('med-obs').value    = '';
 
-    const isAdmModal = o.contrato === 'ADMINISTRAÇÃO';
-    const taxaAdmModal = parseFloat(o.taxa_adm)||0;
-
-    // ── PREÇO FECHADO: dois fatores em cascata (desconto + entrada) ──
+    // ── Dois fatores aplicados em cascata ────────────────────────
+    // 1. FATOR DESCONTO: reduz o valor contratado de cada serviço
+    //    fatorDesc = contratoFinal / vendaBruta
+    //    Ex: 60.000 / 62.397 = 0,9616 → cada R$10.000 vale R$9.616
+    //
+    // 2. FATOR ENTRADA: do valor já com desconto, quanto ainda falta cobrar
+    //    fatorEntrada = 1 − (entrada / contratoFinal)
+    //    Ex: 1 − (12.000 / 60.000) = 0,80 → cobrar 80% via medições
+    //
+    // Valor na medição = bruto × fatorDesc × fatorEntrada
+    //    Ex: 10.000 × 0,9616 × 0,80 = R$7.693 a cobrar do cliente
+    //    + R$1.923 já quitados pela entrada = R$9.616 (contrato do serviço) ✓
     const vendaBrutaTotal = tasks.reduce((a,t) => a+(parseFloat(t.valor_venda)||parseFloat(t.valor)||0),0);
     const desconto        = parseFloat(o.desconto)||0;
     const entradaPaga     = parseFloat(o.entrada)||0;
     const contratoFinal   = Math.max(0, vendaBrutaTotal - desconto);
+    // Fator 1: desconto proporcional sobre o valor bruto de cada serviço
     const fatorDesc       = vendaBrutaTotal > 0 ? contratoFinal / vendaBrutaTotal : 1;
+    // Fator 2: proporção do contrato que ainda falta cobrar (o que a entrada não cobriu)
     const fatorEntrada    = contratoFinal > 0 ? Math.max(0, contratoFinal - entradaPaga) / contratoFinal : 1;
+    // Fator combinado: aplica os dois em cascata
     const fatorDesconto   = fatorDesc * fatorEntrada;
+    // Porcentagem da entrada sobre o contrato (para mostrar no aviso)
     const pctEntrada      = contratoFinal > 0 ? (entradaPaga / contratoFinal * 100) : 0;
 
-    // ── Aviso no topo do modal (diferente por tipo de contrato) ──
-    let avisoDesconto = '';
-    if(isAdmModal){
-        // ADM: mostra a taxa e base de cálculo
-        const custoBrutoTotal = tasks.reduce((a,t) => a+(parseFloat(t.valor)||0),0);
-        const taxaAdmMatModal = (o.taxa_adm_mat !== undefined && o.taxa_adm_mat !== '')
-            ? parseFloat(o.taxa_adm_mat)||0 : taxaAdmModal;
-        const temDuasTaxas = taxaAdmMatModal !== taxaAdmModal;
-
-        // Custo orçado separado por tipo
-        const custoBrutoServicos = tasks.reduce((a,t) => a+(parseFloat(t.valor)||0)-(parseFloat(t.valor_mat)||0),0);
-        const custoBrutoMat      = tasks.reduce((a,t) => a+(parseFloat(t.valor_mat)||0),0);
-
-        avisoDesconto = `
-        <div class="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 flex items-start gap-3 mb-1">
-            <i data-lucide="percent" class="w-4 h-4 text-blue-600 shrink-0 mt-0.5"></i>
-            <div>
-                <p class="text-[10px] font-bold text-blue-700 uppercase">Contrato por Administração</p>
-                <div class="text-[9px] text-gray-600 mt-1 space-y-0.5">
-                    ${temDuasTaxas ? `
-                    <p><span class="font-bold text-blue-700">Taxa Serviços (${taxaAdmModal}%)</span> sobre MO + EQ + Outros + Compras Extras</p>
-                    <p><span class="font-bold text-purple-700">Taxa Materiais (${taxaAdmMatModal}%)</span> sobre MAT</p>
-                    <p class="text-gray-400">Orçado — Serviços: ${fmtBRL(custoBrutoServicos)} | Mat: ${fmtBRL(custoBrutoMat)}</p>
-                    ` : `
-                    <p>Taxa única: <strong>${taxaAdmModal}%</strong> sobre custo total (MO + MAT + EQ + OUTROS + Extras)</p>
-                    <p class="text-gray-400">Custo total orçado: ${fmtBRL(custoBrutoTotal)}</p>
-                    `}
-                    <p class="font-bold text-blue-700 border-t border-blue-200 pt-1">
-                        Compras extras aprovadas serão incluídas automaticamente na base de cálculo
-                    </p>
-                </div>
-            </div>
-        </div>`;
-    } else if(desconto > 0 || entradaPaga > 0){
-        // Preço Fechado com ajustes
-        avisoDesconto = `
+    // Aviso no modal
+    const temAjuste = desconto > 0 || entradaPaga > 0;
+    const avisoDesconto = temAjuste ? `
         <div class="bg-orange-50 border border-orange-200 rounded-lg px-4 py-3 flex items-start gap-3 mb-1">
             <i data-lucide="tag" class="w-4 h-4 text-arcco-orange shrink-0 mt-0.5"></i>
             <div>
@@ -331,12 +313,13 @@ export const openModalNovaMedicao = () => {
                     ${entradaPaga>0 ? `
                     <p>Entrada de <strong class="text-green-700">${fmtBRL(entradaPaga)}</strong> = <strong>${pctEntrada.toFixed(1)}%</strong> do contrato já quitado</p>
                     <p class="font-bold text-arcco-black border-t border-orange-200 pt-1">
-                        Cada serviço = valor bruto × ${(fatorDesc*100).toFixed(2)}% × ${(fatorEntrada*100).toFixed(1)}%
-                    </p>` : ''}
+                        Cada serviço nas medições = valor bruto × ${(fatorDesc*100).toFixed(2)}% × ${(fatorEntrada*100).toFixed(1)}%
+                    </p>
+                    <p class="text-gray-500">Ex: R$10.000 bruto → R$${(10000*fatorDesc).toFixed(0)} contratado → <strong>R$${(10000*fatorDesconto).toFixed(0)} a cobrar</strong> + R$${(10000*fatorDesc*(1-fatorEntrada)).toFixed(0)} já vieram pela entrada</p>
+                    ` : ''}
                 </div>
             </div>
-        </div>`;
-    }
+        </div>` : '';
 
     // Agrupa tarefas por módulo para exibir no modal
     const mods = [...new Set(tasks.map(t => t.modulo))];
@@ -348,40 +331,20 @@ export const openModalNovaMedicao = () => {
 
             // Lista de serviços individuais dentro do módulo
             const servicosHtml = mTasks.map((t,i) => {
-                // CUSTO TOTAL do serviço (MO + MAT + EQ + OUTROS)
-                const custoTotalServico = parseFloat(t.valor) || 0;
-                // MO bruto = só mão de obra (para preço fechado, paga o fornecedor)
+                // MO = o que paga o fornecedor → NÃO é afetado por desconto nem entrada
                 const moServicoBruto    = parseFloat(t.valor_mo) || parseFloat(t.valor) || 0;
+                const moServico         = moServicoBruto; // sem alteração
 
-                let moServico, vendaServico, vendaServicoBruto;
-                if(isAdmModal){
-                    // ADM: separa custo de serviços vs materiais para aplicar taxas diferentes
-                    const matServico     = parseFloat(t.valor_mat)||0;
-                    const servicoSemMat  = custoTotalServico - matServico; // MO+EQ+Outros
-                    const taxaServicos   = taxaAdmModal;
-                    const taxaMat        = (o.taxa_adm_mat !== undefined && o.taxa_adm_mat !== '')
-                        ? parseFloat(o.taxa_adm_mat)||0 : taxaAdmModal;
-                    // data-mo = custo total do serviço (base)
-                    // data-venda = ADM sobre serviços + ADM sobre mat (receita Arcco)
-                    // data-mat = valor de material separado (para cálculo correto)
-                    moServico         = custoTotalServico;
-                    const admServico  = servicoSemMat * (taxaServicos/100);
-                    const admMat      = matServico    * (taxaMat/100);
-                    vendaServicoBruto = admServico + admMat; // ADM total deste serviço
-                    vendaServico      = vendaServicoBruto;
-                } else {
-                    // PREÇO FECHADO: MO não muda, venda sofre desconto+entrada
-                    moServico         = moServicoBruto;
-                    vendaServicoBruto = parseFloat(t.valor_venda) || parseFloat(t.valor) || 0;
-                    vendaServico      = vendaServicoBruto * fatorDesconto;
-                }
+                // VENDA = o que cobra do cliente → sofre desconto E entrada em cascata
+                // fatorDesc:    reduz pelo desconto proporcional (ex: 96,16%)
+                // fatorEntrada: reduz pela entrada proporcional  (ex: 80,00%)
+                // Resultado: venda bruta × fatorDesc × fatorEntrada = valor a cobrar na medição
+                const vendaServicoBruto = parseFloat(t.valor_venda) || parseFloat(t.valor) || 0;
+                const vendaServico      = vendaServicoBruto * fatorDesconto; // fatorDesconto = fatorDesc × fatorEntrada
 
                 // ── Calcula quanto JÁ foi medido deste serviço em medições anteriores ──
-                // Se estiver editando, EXCLUI a própria medição do cálculo
-                // para que o serviço não apareça como 100% bloqueado
-                const _editingIdCalc = document.getElementById('modal-nova-medicao')?.getAttribute('data-editing-id')||'';
+                // Soma todos os pct deste task em todas as medições já salvas
                 const pctJaMedido = (o.medicoes||[]).reduce((acc, med) => {
-                    if(_editingIdCalc && med.id === _editingIdCalc) return acc; // ignora a medição em edição
                     const srv = (med.porLider||[])
                         .flatMap(l => l.servicos||[])
                         .find(s => s.taskId === t.id);
@@ -415,14 +378,6 @@ export const openModalNovaMedicao = () => {
                             <p class="text-[10px] font-bold text-arcco-black uppercase leading-tight">${t.nome}</p>
                             <p class="text-[8px] font-bold text-gray-400 uppercase mt-0.5">
                                 ${t.forn||'Sem equipe'}
-                                ${isAdmModal ? (() => {
-                                    const matS = parseFloat(t.valor_mat)||0;
-                                    const txMat = (o.taxa_adm_mat!==undefined&&o.taxa_adm_mat!=='') ? parseFloat(o.taxa_adm_mat)||0 : taxaAdmModal;
-                                    const temDif = txMat !== taxaAdmModal;
-                                    return temDif
-                                        ? `• Serv: ${fmtBRL(custoTotalServico-matS)}×${taxaAdmModal}% + Mat: ${fmtBRL(matS)}×${txMat}% = ADM: ${fmtBRL(vendaServicoBruto)}`
-                                        : `• Custo: ${fmtBRL(custoTotalServico)} • ADM (${taxaAdmModal}%): ${fmtBRL(vendaServicoBruto)}`;
-                                })() : `• A cobrar: ${fmtBRL(vendaServico)}`}
                             </p>
                             <!-- Barra de progresso de medição -->
                             <div class="flex items-center gap-2 mt-1.5">
@@ -514,42 +469,16 @@ export const openModalNovaMedicao = () => {
 
 // Atualiza os displays do modal de medição
 function _atualizarDisplayMedicao(custoMO, totalVenda, valorAdm, totalDiarias, retencaoTotal){
-    const o = STATE.obras.find(x => x.firebaseId===STATE.currentObraId);
-    const isAdm = o?.contrato==='ADMINISTRAÇÃO';
-    const taxa  = parseFloat(o?.taxa_adm)||0;
-    const el = (id) => document.getElementById(id);
+    const margem = totalVenda - custoMO;
+    document.getElementById('med-custo-display').innerText = fmtBRL(custoMO);
+    document.getElementById('med-adm-display').innerText   = fmtBRL(valorAdm + totalDiarias);
+    document.getElementById('med-total-display').innerText = fmtBRL(totalVenda + valorAdm + totalDiarias - retencaoTotal);
 
-    if(isAdm){
-        // ADM: custoMO = custo executado, totalVenda = taxa ADM sobre custo
-        if(el('med-custo-display'))    el('med-custo-display').innerText    = fmtBRL(custoMO);
-        if(el('med-venda-display'))    el('med-venda-display').innerText    = fmtBRL(totalVenda);
-        if(el('med-adm-display'))      el('med-adm-display').innerText      = fmtBRL(totalDiarias);
-        if(el('med-margem-display'))   el('med-margem-display').innerText   = fmtBRL(totalVenda);
-        if(el('med-retencao-display')) el('med-retencao-display').innerText = fmtBRL(retencaoTotal);
-        if(el('med-total-display'))    el('med-total-display').innerText    = fmtBRL(custoMO + totalVenda + totalDiarias - retencaoTotal);
-        // Labels
-        const lCusto  = el('med-custo-display')?.previousElementSibling;
-        const lVenda  = el('med-venda-display')?.previousElementSibling;
-        const lMargem = el('med-margem-display')?.previousElementSibling;
-        if(lCusto)  lCusto.innerText  = 'Custo Executado:';
-        if(lVenda)  lVenda.innerText  = `Taxa ADM (${taxa}%):`;
-        if(lMargem) lMargem.innerText = 'Receita Arcco (ADM):';
-    } else {
-        // Preço Fechado: comportamento original
-        const margem = totalVenda - custoMO;
-        if(el('med-custo-display'))    el('med-custo-display').innerText    = fmtBRL(custoMO);
-        if(el('med-adm-display'))      el('med-adm-display').innerText      = fmtBRL(valorAdm + totalDiarias);
-        if(el('med-total-display'))    el('med-total-display').innerText    = fmtBRL(totalVenda + valorAdm + totalDiarias - retencaoTotal);
-        if(el('med-venda-display'))    el('med-venda-display').innerText    = fmtBRL(totalVenda);
-        if(el('med-margem-display'))   el('med-margem-display').innerText   = fmtBRL(margem);
-        if(el('med-retencao-display')) el('med-retencao-display').innerText = fmtBRL(retencaoTotal);
-        const lCusto  = el('med-custo-display')?.previousElementSibling;
-        const lVenda  = el('med-venda-display')?.previousElementSibling;
-        const lMargem = el('med-margem-display')?.previousElementSibling;
-        if(lCusto)  lCusto.innerText  = 'MO a Pagar Empreiteiros:';
-        if(lVenda)  lVenda.innerText  = 'Venda / Receita Arcco:';
-        if(lMargem) lMargem.innerText = 'Margem Arcco (Venda − MO):';
-    }
+    // Tenta atualizar displays extras (podem não existir em versões antigas do HTML)
+    const el = (id) => document.getElementById(id);
+    if(el('med-venda-display'))    el('med-venda-display').innerText    = fmtBRL(totalVenda);
+    if(el('med-margem-display'))   el('med-margem-display').innerText   = fmtBRL(margem);
+    if(el('med-retencao-display')) el('med-retencao-display').innerText = fmtBRL(retencaoTotal);
 }
 
 // Recalcula os totais em tempo real ao marcar/desmarcar serviços
@@ -580,25 +509,16 @@ export const calcMedicaoTotal = () => {
         const pct     = parseFloat(row?.querySelector('.med-srv-pct')?.value)      || 0;
         const retPct  = parseFloat(row?.querySelector('.med-srv-retencao')?.value) || 0;
 
-        const custoMedido  = mo    * (pct/100); // para ADM: mo = custo total do serviço
-        const vendaMedida  = venda * (pct/100); // para ADM: venda = taxa ADM sobre custo
-        const retencao     = custoMedido * (retPct/100);
+        const moServico    = mo * (pct/100);
+        const vendaServico = venda * (pct/100);
+        const retencao     = moServico * (retPct/100);
 
-        custoMO       += custoMedido;
-        totalVenda    += vendaMedida;
+        custoMO       += moServico;
+        totalVenda    += vendaServico;
         retencaoTotal += retencao;
     });
 
-    // Para ADM: valorAdm já está embutido em totalVenda (data-venda = ADM calculado)
-    // Compras extras aprovadas também entram na base ADM
-    let valorAdm = 0;
-    if(isAdm){
-        const comprasAprov = (STATE.obras.find(x=>x.firebaseId===STATE.currentObraId)?.compras||[])
-            .filter(c=>c.status==='aprovado');
-        const totalExtras  = comprasAprov.reduce((a,c)=>a+(parseFloat(c.valor)||0),0);
-        // Compras extras: sem materiais discriminados, usa taxa de serviços
-        valorAdm = totalExtras * (taxa/100);
-    }
+    const valorAdm = isAdm ? (custoMO + totalVenda) * (taxa/100) : 0;
     _atualizarDisplayMedicao(custoMO, totalVenda, valorAdm, totalDiarias, retencaoTotal);
 };
 
@@ -641,16 +561,11 @@ export const saveMedicao = async () => {
         porLiderMap[lider].liquido        = porLiderMap[lider].totalMO - porLiderMap[lider].totalRetencao;
 
         custoMOTotal      += moServico;
-        totalVendaGlobal  += vendaServico; // ADM: taxa ADM; PF: venda com fatores
+        totalVendaGlobal  += vendaServico;
         retencaoGlobal    += retencao;
     });
 
-    // Em modo edição, o modal já tem os serviços pré-marcados
-    // Se o usuário desmarcou tudo intencionalmente, avisa; caso contrário deixa passar
-    const modal = document.getElementById('modal-nova-medicao');
-    const editingId = modal?.getAttribute('data-editing-id')||'';
-    if(!temServico && !editingId) return showToast('SELECIONE PELO MENOS UM SERVIÇO');
-    if(!temServico && editingId) return showToast('MARQUE AO MENOS UM SERVIÇO PARA SALVAR');
+    if(!temServico) return showToast('SELECIONE PELO MENOS UM SERVIÇO');
 
     const valorAdm   = isAdm ? (custoMOTotal + totalVendaGlobal) * (taxa/100) : 0;
     const medicaoId  = `M-${Date.now()}`;
@@ -661,10 +576,6 @@ export const saveMedicao = async () => {
         periodo:    document.getElementById('med-periodo').value,
         inicio:     document.getElementById('med-inicio').value,
         fim:        document.getElementById('med-fim').value,
-        vencimento: document.getElementById('med-vencimento')?.value||'',
-        // Guarda as taxas usadas (para histórico)
-        taxaAdmUsada:  isAdm ? taxa : null,
-        taxaMatUsada:  isAdm ? (o.taxa_adm_mat!==undefined&&o.taxa_adm_mat!=='' ? parseFloat(o.taxa_adm_mat)||0 : taxa) : null,
         // Valores separados
         totalMO:         custoMOTotal,       // o que vai pagar os empreiteiros
         totalVenda:      totalVendaGlobal,   // receita da Arcco
@@ -683,7 +594,9 @@ export const saveMedicao = async () => {
     const diariasAtualizadas = (o.diarias||[]).map(d => !d.medicaoId ? {...d, medicaoId} : d);
     const medicoes = [...(o.medicoes||[]), novaMedicao];
 
-    // editingId e modal já declarados acima na validação
+    // Verifica se estamos editando uma medição existente
+    const modal       = document.getElementById('modal-nova-medicao');
+    const editingId   = modal?.getAttribute('data-editing-id')||'';
 
     let medicoesFinal;
     if(editingId){
@@ -692,8 +605,8 @@ export const saveMedicao = async () => {
         novaMedicao.id        = editingId;
         novaMedicao.statusAdm = original?.statusAdm || 'pendente';
         medicoesFinal = (o.medicoes||[]).map(x => x.id===editingId ? novaMedicao : x);
-        showToast('MEDIÇÃO ATUALIZADA!');
         modal.removeAttribute('data-editing-id');
+        showToast('MEDIÇÃO ATUALIZADA!');
     } else {
         medicoesFinal = [...(o.medicoes||[]), novaMedicao];
         showToast('MEDIÇÃO REGISTRADA!');
@@ -726,64 +639,52 @@ export const editarMedicao = (medId) => {
     if(!o) return;
     const m = (o.medicoes||[]).find(x => x.id===medId);
     if(!m) return;
-    // Guarda o ID ANTES de abrir o modal — assim o saveMedicao
-    // já encontra o data-editing-id mesmo que seja chamado logo após
-    const modal = document.getElementById('modal-nova-medicao');
-    if(modal) modal.setAttribute('data-editing-id', medId);
 
-    // Abre o modal (popula lista de serviços)
+    // Abre o modal normalmente (popula serviços, etc.)
     openModalNovaMedicao();
 
-    // Preenche os campos após o modal renderizar
-    // Usa intervalo de polling para garantir que os checkboxes já existam no DOM
-    let tentativas = 0;
-    const _preencher = () => {
-        tentativas++;
-        const primeiroChk = document.querySelector('.med-srv-chk');
-        // Se os checkboxes ainda não renderizaram e temos tentativas, espera mais
-        if(!primeiroChk && tentativas < 10){
-            setTimeout(_preencher, 100);
-            return;
-        }
-
+    // Após renderizar, preenche os campos com os dados da medição existente
+    setTimeout(() => {
         // Campos de cabeçalho
-        const el = (id) => document.getElementById(id);
-        if(el('med-inicio'))    el('med-inicio').value    = m.inicio||'';
-        if(el('med-fim'))       el('med-fim').value       = m.fim||'';
-        if(el('med-obs'))       el('med-obs').value       = m.obs||'';
-        if(el('med-periodo'))   el('med-periodo').value   = m.periodo||'semanal';
-        if(el('med-vencimento'))el('med-vencimento').value= m.vencimento||'';
+        const elInicio = document.getElementById('med-inicio');
+        const elFim    = document.getElementById('med-fim');
+        const elObs    = document.getElementById('med-obs');
+        const elPeriodo= document.getElementById('med-periodo');
+        if(elInicio)  elInicio.value  = m.inicio||'';
+        if(elFim)     elFim.value     = m.fim||'';
+        if(elObs)     elObs.value     = m.obs||'';
+        if(elPeriodo) elPeriodo.value = m.periodo||'mensal';
 
-        // Remarca os serviços com os % e retenções originais
+        // Remarca os serviços e preenche % e retenção de cada um
         const srvsSalvos = (m.porLider||[]).flatMap(l => l.servicos||[]);
         srvsSalvos.forEach(srv => {
+            // Acha o checkbox pelo taskId
             const chk = document.querySelector(`.med-srv-chk[data-task-id="${srv.taskId}"]`);
-            if(!chk) return;
-            // Libera temporariamente se estiver desabilitado (pode ter sido medido antes)
-            const eraDisabled = chk.disabled;
-            chk.disabled = false;
+            if(!chk || chk.disabled) return;
             chk.checked = true;
-            // Mostra os campos de % e retenção
+            APP._toggleCheckinObraRow?.(chk); // mostra os campos
+            // Aciona o toggle dos fields manualmente
             const fields = chk.closest('.med-servico-row')?.querySelector('.med-srv-fields');
             if(fields){ fields.classList.remove('hidden'); fields.classList.add('flex'); }
-            // Preenche os valores
+            // Preenche % executado e retenção
             const pctInput = chk.closest('.med-servico-row')?.querySelector('.med-srv-pct');
             const retInput = chk.closest('.med-servico-row')?.querySelector('.med-srv-retencao');
-            if(pctInput){ pctInput.value = srv.pct||0; pctInput.max = 100; } // libera o max para edição
-            if(retInput)  retInput.value = srv.retPct||0;
-            if(eraDisabled) chk.disabled = false; // mantém liberado para edição
+            if(pctInput) pctInput.value = srv.pct||0;
+            if(retInput) retInput.value = srv.retPct||0;
         });
 
-        // Recalcula totais
-        APP.calcMedicaoTotal?.();
+        // Recalcula os totais com os valores preenchidos
+        APP.calcMedicaoTotal();
 
-        // Atualiza visual do modal para modo edição
-        const titulo = modal?.querySelector('.font-montserrat.font-bold.text-sm.uppercase.text-white');
+        // Marca o id da medição sendo editada para o saveMedicao substituir em vez de criar nova
+        document.getElementById('modal-nova-medicao')?.setAttribute('data-editing-id', medId);
+
+        // Muda o título e botão do modal
+        const titulo = document.querySelector('#modal-nova-medicao .font-montserrat.font-bold.text-sm');
         if(titulo) titulo.innerText = 'Editar Medição';
-        const btnSalvar = modal?.querySelector('button[onclick="APP.saveMedicao()"]');
-        if(btnSalvar){ btnSalvar.innerText = 'Salvar Alterações'; }
-    };
-    setTimeout(_preencher, 200);
+        const btnSalvar = document.querySelector('#modal-nova-medicao button[onclick="APP.saveMedicao()"]');
+        if(btnSalvar) btnSalvar.innerText = 'Salvar Alterações';
+    }, 150);
 };
 
 export const deleteMedicao = async (medId) => {
@@ -815,6 +716,17 @@ export const _limitarPct = (input, maximo) => {
 // ── Entrada / Sinal do Cliente ───────────────────────────────
 // Salva o valor de entrada pago pelo cliente antes das medições.
 // O valor é distribuído proporcionalmente — abate do saldo a receber.
+// Abre o modal de entrada já preenchido com o valor atual (para edição)
+export const abrirEditarEntrada = () => {
+    const o = STATE.obras.find(x => x.firebaseId===STATE.currentObraId);
+    if(!o) return;
+    const elVal = document.getElementById('entrada-valor');
+    const elObs = document.getElementById('entrada-obs');
+    if(elVal) elVal.value = o.entrada||'';
+    if(elObs) elObs.value = o.entradaObs||'';
+    openModal('modal-entrada-obra');
+};
+
 export const saveEntrada = async () => {
     const val = parseFloat(document.getElementById('entrada-valor')?.value)||0;
     const obs = document.getElementById('entrada-obs')?.value||'';
