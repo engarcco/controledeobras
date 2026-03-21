@@ -34,6 +34,7 @@ import { renderMasterObrasGrid, openObraDetail,
          saveModuloObra, editModuloObra, cancelEditModulo, deleteModuloObra,
          saveNovaObra, updateObraConfig, saveHorarioObra, onToggleNoturno,
          calcFimPorDuracao, calcDuracaoPorFim,
+         renderComprasList,
          openModalNovaCompra, saveNovaCompra, aprovarCompra, deleteCompra,
          _toggleTaxaMat } from './obras.js';
 
@@ -144,6 +145,7 @@ window.APP = {
     openModalNovaCompra,
     saveNovaCompra,
     aprovarCompra,
+    renderComprasList,
     saveHorarioObra,
     onToggleNoturno,
     calcFimPorDuracao,
