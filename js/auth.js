@@ -102,7 +102,7 @@ function _handleLogin(e) {
 
     const DEFAULT_GESTORES = [
         { nome: 'Andres Greco',  login: 'andresgreco',   senha: 'Arcco1452*' },
-        { nome: 'Lucas Barbosa', login: 'lucas barbosa', senha: 'Arcco1452*' }
+        
     ];
 
     // ── MASTER ────────────────────────────────────────────────
